@@ -1,0 +1,70 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}Operations Dashboard{% endblock %}
+{% block content %}
+{% can_access 'asset_list' as can_asset_list %}{% can_access 'maintenance_request_list' as can_request_list %}{% can_access 'work_order_list' as can_wo_list %}{% can_access 'pm_plan_list' as can_pm_list %}{% can_access 'spare_list' as can_spare_list %}{% can_access 'maintenance_history_reliability' as can_reliability %}
+<section class="dashboard-toolbar surface mb-4">
+  <div>
+    <div class="dashboard-kicker">Live operational overview</div>
+    <h2 class="dashboard-title">Plant performance at a glance</h2>
+    <p class="dashboard-copy">Current operational status with reliability KPIs for {{ dashboard_period_label }}.</p>
+  </div>
+  <form class="dashboard-filter" method="get">
+    <div>
+      <label class="form-label" for="dashboardPlant">Plant</label>
+      <select class="form-select" id="dashboardPlant" name="plant">
+        <option value="">All permitted plants</option>
+        {% for plant in plants %}<option value="{{ plant.pk }}" {% if selected_plant and selected_plant.pk == plant.pk %}selected{% endif %}>{{ plant.code }} - {{ plant.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary">Apply filter</button>
+  </form>
+</section>
+
+<section class="dashboard-kpi-grid mb-4" aria-label="Operational summary">
+  {% if can_asset_list %}<a class="dashboard-kpi" href="{% url 'asset_list' %}{% if selected_plant %}?plant={{ selected_plant.pk }}{% endif %}">{% else %}<div class="dashboard-kpi">{% endif %}<span class="kpi-label">Total assets</span><strong>{{ total_assets }}</strong><small>Registered in selected scope</small>{% if can_asset_list %}</a>{% else %}</div>{% endif %}
+  {% if can_request_list %}<a class="dashboard-kpi" href="{% url 'maintenance_request_list' %}?open=1{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}">{% else %}<div class="dashboard-kpi">{% endif %}<span class="kpi-label">Open requests</span><strong>{{ open_requests }}</strong><small>Maintenance notifications requiring action</small>{% if can_request_list %}</a>{% else %}</div>{% endif %}
+  {% if can_wo_list %}<a class="dashboard-kpi" href="{% url 'work_order_list' %}?open=1{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}">{% else %}<div class="dashboard-kpi">{% endif %}<span class="kpi-label">Open work orders</span><strong>{{ open_work_orders }}</strong><small>Active maintenance workload</small>{% if can_wo_list %}</a>{% else %}</div>{% endif %}
+  {% if can_asset_list %}<a class="dashboard-kpi danger" href="{% url 'asset_list' %}?critical=1{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}">{% else %}<div class="dashboard-kpi danger">{% endif %}<span class="kpi-label">Critical assets</span><strong>{{ critical_assets }}</strong><small>High/critical or safety-critical</small>{% if can_asset_list %}</a>{% else %}</div>{% endif %}
+  {% if can_pm_list %}<a class="dashboard-kpi warning" href="{% url 'pm_plan_list' %}{% if selected_plant %}?plant={{ selected_plant.pk }}{% endif %}">{% else %}<div class="dashboard-kpi warning">{% endif %}<span class="kpi-label">Overdue PM</span><strong>{{ overdue_pm }}</strong><small>Preventive plans past due date</small>{% if can_pm_list %}</a>{% else %}</div>{% endif %}
+  {% if can_spare_list %}<a class="dashboard-kpi warning" href="{% url 'spare_list' %}?stock=low{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}">{% else %}<div class="dashboard-kpi warning">{% endif %}<span class="kpi-label">Low stock</span><strong>{{ low_stock_spares }}</strong><small>At or below minimum stock</small>{% if can_spare_list %}</a>{% else %}</div>{% endif %}
+</section>
+
+<section class="reliability-panel surface mb-4">
+  <div class="section-head compact">
+    <div><span class="dashboard-kicker">Reliability snapshot</span><h3>Current month performance</h3></div>
+    {% if can_reliability %}<a class="btn btn-light btn-sm" href="{% url 'maintenance_history_reliability' %}{% if selected_plant %}?plant={{ selected_plant.pk }}{% endif %}">Open reliability history</a>{% endif %}
+  </div>
+  <div class="reliability-grid">
+    <div class="reliability-stat"><span>MTTR</span><strong>{{ monthly_mttr_display }}</strong><small>hours / completed breakdown repair</small></div>
+    <div class="reliability-stat"><span>MTBF</span><strong>{{ monthly_mtbf_display }}</strong><small>operating hours / breakdown</small></div>
+    <div class="reliability-stat"><span>Availability</span><strong>{% if monthly_availability != None %}{{ monthly_availability }}%{% else %}-{% endif %}</strong><small>scheduled time available</small></div>
+    <div class="reliability-stat"><span>Breakdown downtime</span><strong>{{ monthly_downtime }}</strong><small>merged hours</small></div>
+    <div class="reliability-stat"><span>Failures</span><strong>{{ monthly_breakdowns }}</strong><small>breakdown work orders</small></div>
+    <div class="reliability-stat"><span>Failure rate</span><strong>{% if monthly_failure_rate != None %}{{ monthly_failure_rate }}{% else %}-{% endif %}</strong><small>per 1,000 operating h</small></div>
+  </div>
+  {% if reliability_warnings %}<div class="dashboard-note warning-note">{{ reliability_warnings|join:" " }}</div>{% endif %}
+</section>
+
+<section class="dashboard-chart-grid mb-4">
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Asset health</span><h3>Asset status</h3><p>Current operational distribution.</p></div></div><div class="chart-shell chart-shell-donut"><canvas id="assetStatus" aria-label="Asset status chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Maintenance pipeline</span><h3>Open work orders</h3><p>Current work by lifecycle status.</p></div></div><div class="chart-shell"><canvas id="woStatus" aria-label="Open work order status chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Demand</span><h3>Open requests by plant</h3><p>Plants generating the current request backlog.</p></div></div><div class="chart-shell"><canvas id="plantRequests" aria-label="Open maintenance requests by plant chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Downtime</span><h3>Events by type</h3><p>Events started during {{ dashboard_period_label }}.</p></div></div><div class="chart-shell chart-shell-donut"><canvas id="downtimeType" aria-label="Downtime events by type chart"></canvas></div></article>
+  <article class="chart-card chart-card-wide"><div class="chart-card-head"><div><span class="chart-eyebrow">Critical equipment</span><h3>Availability</h3><p>Current-month availability for the highest-priority critical assets.</p></div><span class="chart-unit">%</span></div><div class="chart-shell chart-shell-tall"><canvas id="criticalAvailability" aria-label="Critical asset availability chart"></canvas></div></article>
+</section>
+
+<section class="dashboard-list-grid">
+  <article class="surface"><div class="section-head compact"><div><h3>Recent work orders</h3><p>Most recently created maintenance work.</p></div>{% if can_wo_list %}<a href="{% url 'work_order_list' %}">View all</a>{% endif %}</div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>WO</th><th>Asset</th><th>Work centre</th><th>Status</th></tr></thead><tbody>{% for wo in recent_work_orders %}<tr><td><a href="{% url 'work_order_detail' wo.pk %}"><strong>{{ wo.wo_number }}</strong></a></td><td>{{ wo.asset.asset_id }}</td><td>{{ wo.work_centre.code|default:'-' }}</td><td><span class="status-pill">{{ wo.get_status_display }}</span></td></tr>{% empty %}<tr><td colspan="4" class="empty-cell"><div class="empty">No work orders in this scope.</div></td></tr>{% endfor %}</tbody></table></div></article>
+  <article class="surface"><div class="section-head compact"><div><h3>Recent requests</h3><p>Latest maintenance notifications.</p></div>{% if can_request_list %}<a href="{% url 'maintenance_request_list' %}">View all</a>{% endif %}</div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>MR</th><th>Asset</th><th>Priority</th><th>Status</th></tr></thead><tbody>{% for req in recent_requests %}<tr><td><strong>{{ req.request_no }}</strong></td><td>{{ req.asset.asset_id }}</td><td>{{ req.get_priority_display }}</td><td><span class="status-pill">{{ req.get_status_display }}</span></td></tr>{% empty %}<tr><td colspan="4" class="empty-cell"><div class="empty">No requests in this scope.</div></td></tr>{% endfor %}</tbody></table></div></article>
+</section>
+{% endblock %}
+{% block scripts %}<script>
+const asset={{ asset_status_json|safe }}, wo={{ wo_status_json|safe }}, pr={{ plant_request_json|safe }}, dt={{ downtime_type_json|safe }}, ca={{ critical_availability_json|safe }};
+const canAsset={{ can_asset_list|yesno:"true,false" }}, canWO={{ can_wo_list|yesno:"true,false" }};
+new Chart(document.getElementById('assetStatus'),{type:'doughnut',data:{labels:asset.labels,datasets:[{data:asset.values}]},options:{plugins:{legend:{position:'bottom'}},onClick:(e,els)=>{if(canAsset&&els.length)location.href='{% url "asset_list" %}?status='+(asset.codes?.[els[0].index]||'')}}});
+new Chart(document.getElementById('woStatus'),{type:'bar',data:{labels:wo.labels,datasets:[{label:'Open work orders',data:wo.values}]},options:{plugins:{legend:{display:false}},onClick:(e,els)=>{if(canWO&&els.length)location.href='{% url "work_order_list" %}?status='+(wo.codes?.[els[0].index]||'')}}});
+new Chart(document.getElementById('plantRequests'),{type:'bar',data:{labels:pr.labels,datasets:[{label:'Open requests',data:pr.values}]},options:{indexAxis:'y',plugins:{legend:{display:false}}}});
+new Chart(document.getElementById('downtimeType'),{type:'doughnut',data:{labels:dt.labels,datasets:[{data:dt.values}]},options:{plugins:{legend:{position:'bottom'}}}});
+new Chart(document.getElementById('criticalAvailability'),{type:'bar',data:{labels:ca.labels,datasets:[{label:'Availability %',data:ca.values}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:100}}}});
+</script>{% endblock %}

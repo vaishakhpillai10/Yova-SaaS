@@ -1,0 +1,108 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}{{ asset.asset_id }} · {{ asset.name }}{% endblock %}
+{% block content %}
+<div class="asset-hero mb-4">
+  <div class="card-soft">
+    <div class="asset-title">
+      <div class="asset-thumb">{% if asset.image %}<img src="{{ asset.image.url }}" alt="{{ asset.name }}">{% else %}{{ asset.asset_type|slice:':2' }}{% endif %}</div>
+      <div>
+        <p class="eyebrow mb-1">Asset Master</p>
+        <h2 class="mb-1">{{ asset.name }}</h2>
+        <div class="asset-meta"><span>{{ asset.asset_id }}</span><span>Tag {{ asset.tag_number }}</span><span>{{ asset.plant.code }}</span><span>{{ asset.get_lifecycle_status_display }}</span><span>{{ asset.get_status_display }}</span></div>
+      </div>
+    </div>
+    <p class="text-muted mt-3 mb-0">{{ asset.asset_description|default:'No description recorded.' }}</p>
+  </div>
+  <div class="card-soft">
+    <h3>Quick Actions</h3>
+    <div class="quick-actions">
+      <a class="btn btn-sm btn-primary" href="{% url 'maintenance_request_create' %}">Report Problem</a>
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'work_order_create' %}">Create WO</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'asset_document_upload' %}">Add Document</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'asset_image_upload' %}">Add Image</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'asset_meter_reading_create' %}">Meter Reading</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'asset_transfer_create' %}">Transfer</a>
+    </div>
+    <hr>
+    <div class="display-6 fw-bold">{{ availability_30d }}%</div><small class="text-muted">30-day availability · {{ downtime_30d }} downtime hours</small>
+  </div>
+</div>
+
+<div class="card-soft tab-card">
+  <ul class="nav nav-tabs" id="assetTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">Overview</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#technical" type="button">Technical</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#hierarchy" type="button">Hierarchy</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#maintenance" type="button">Maintenance</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#documents" type="button">Documents</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bom" type="button">BOM & Spares</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#meters" type="button">Meters</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history" type="button">History</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#qr" type="button">QR</button></li>
+  </ul>
+  <div class="tab-content pt-4">
+    <div class="tab-pane fade show active" id="overview">
+      <div class="info-grid">
+        <div class="info-item"><label>Plant</label><div>{{ asset.plant }}</div></div>
+        <div class="info-item"><label>Department</label><div>{{ asset.department|default:'-' }}</div></div>
+        <div class="info-item"><label>Area</label><div>{{ asset.area|default:'-' }}</div></div>
+        <div class="info-item"><label>Functional Location</label><div>{{ asset.functional_location }}</div></div>
+        <div class="info-item"><label>Responsible Department</label><div>{{ asset.responsible_department|default:'-' }}</div></div>
+        <div class="info-item"><label>Responsible Engineer</label><div>{{ asset.responsible_engineer|default:'-' }}</div></div>
+        <div class="info-item"><label>Custodian</label><div>{{ asset.custodian|default:'-' }}</div></div>
+        <div class="info-item"><label>Cost Centre</label><div>{{ asset.cost_centre|default:'-' }}</div></div>
+        <div class="info-item"><label>Warranty</label><div>{{ asset.warranty_status }}</div></div>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="technical">
+      <div class="info-grid">
+        <div class="info-item"><label>Category</label><div>{{ asset.category|default:'-' }}{% if asset.subcategory %} / {{ asset.subcategory.name }}{% endif %}</div></div>
+        <div class="info-item"><label>Manufacturer</label><div>{{ asset.manufacturer|default:'-' }}</div></div>
+        <div class="info-item"><label>Model / Serial</label><div>{{ asset.model_number|default:'-' }} / {{ asset.serial_number|default:'-' }}</div></div>
+        <div class="info-item"><label>Capacity</label><div>{{ asset.capacity_rating|default:'-' }}</div></div>
+        <div class="info-item"><label>MOC</label><div>{{ asset.material_of_construction|default:'-' }}</div></div>
+        <div class="info-item"><label>Design / Operating Pressure</label><div>{{ asset.design_pressure|default:'-' }} / {{ asset.operating_pressure|default:'-' }}</div></div>
+        <div class="info-item"><label>Power / Voltage</label><div>{{ asset.power_rating|default:'-' }} / {{ asset.voltage|default:'-' }}</div></div>
+        <div class="info-item"><label>Drawing</label><div>{{ asset.drawing_number|default:'-' }}</div></div>
+        <div class="info-item"><label>Datasheet</label><div>{{ asset.datasheet_number|default:'-' }}</div></div>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="hierarchy">
+      <div class="row g-3"><div class="col-lg-4"><div class="panel-muted"><b>Parent Asset</b><p class="mb-0">{% if asset.parent_asset %}<a href="{{ asset.parent_asset.get_absolute_url }}">{{ asset.parent_asset }}</a>{% else %}No parent asset{% endif %}</p></div></div><div class="col-lg-8"><h3>Child Assets</h3><table class="table"><thead><tr><th>Asset</th><th>Name</th><th>Status</th></tr></thead><tbody>{% for child in child_assets %}<tr><td><a href="{{ child.get_absolute_url }}">{{ child.asset_id }}</a></td><td>{{ child.name }}</td><td>{{ child.get_status_display }}</td></tr>{% empty %}<tr><td colspan="3" class="empty-cell">No child assets.</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+    <div class="tab-pane fade" id="maintenance">
+      <div class="row g-4"><div class="col-lg-6"><h3>Open Work Orders</h3><table class="table"><tbody>{% for wo in open_work_orders %}<tr><td><a href="{% url 'work_order_detail' wo.pk %}">{{ wo.wo_number }}</a></td><td>{{ wo.get_status_display }}</td></tr>{% empty %}<tr><td>No open work orders.</td></tr>{% endfor %}</tbody></table></div><div class="col-lg-6"><h3>PM Plans</h3><table class="table"><tbody>{% for pm in pm_plans %}<tr><td>{{ pm.name }}</td><td>{{ pm.next_due_date }}</td></tr>{% empty %}<tr><td>No PM plans.</td></tr>{% endfor %}</tbody></table></div></div>
+      <h3 class="mt-4">Downtime</h3><table class="table"><thead><tr><th>Type</th><th>Start</th><th>End</th><th>Hours</th><th>Reason</th></tr></thead><tbody>{% for e in downtime_events %}<tr><td>{{ e.get_downtime_type_display }}</td><td>{{ e.started_at }}</td><td>{{ e.ended_at }}</td><td>{{ e.duration_hours }}</td><td>{{ e.reason }}</td></tr>{% empty %}<tr><td colspan="5" class="empty-cell">No downtime records.</td></tr>{% endfor %}</tbody></table>
+    </div>
+    <div class="tab-pane fade" id="documents">
+      <div class="quick-actions mb-3"><a class="btn btn-sm btn-primary" href="{% url 'asset_document_upload' %}">Upload Document</a><a class="btn btn-sm btn-outline-secondary" href="{% url 'asset_image_upload' %}">Upload Image</a></div>
+      <h3>Documents</h3><table class="table"><thead><tr><th>Type</th><th>Title</th><th>Rev</th><th>Status</th><th>Expiry</th></tr></thead><tbody>{% for doc in documents %}<tr><td>{{ doc.get_document_type_display }}</td><td>{{ doc.title }}</td><td>{{ doc.revision|default:'-' }}</td><td>{{ doc.get_status_display }}</td><td>{{ doc.expiry_date|default:'-' }}</td></tr>{% empty %}<tr><td colspan="5" class="empty-cell">No documents uploaded.</td></tr>{% endfor %}</tbody></table>
+      <h3 class="mt-4">Images</h3><div class="row g-3">{% for img in images %}<div class="col-md-3"><div class="panel-muted"><img src="{{ img.image.url }}" alt="{{ img.caption }}" style="width:100%;height:120px;object-fit:cover;border-radius:12px"><b>{{ img.get_image_type_display }}</b><p class="mb-0 small">{{ img.caption }}</p></div></div>{% empty %}<div class="empty">No image gallery yet.</div>{% endfor %}</div>
+    </div>
+    <div class="tab-pane fade" id="bom"><div class="quick-actions mb-3"><a class="btn btn-sm btn-primary" href="{% url 'asset_bom_create' %}?asset={{ asset.pk }}">Add BOM Component</a></div><table class="table"><thead><tr><th>Item</th><th>Qty</th><th>Stock</th><th>Critical</th></tr></thead><tbody>{% for item in bom_items %}<tr><td>{{ item.spare_part.item_no }} - {{ item.spare_part.name }}</td><td>{{ item.quantity }}</td><td>{{ item.spare_part.current_stock }}</td><td>{{ item.spare_part.get_item_class_display }}</td></tr>{% empty %}<tr><td colspan="4" class="empty-cell">No BOM/spares mapped.</td></tr>{% endfor %}</tbody></table></div>
+    <div class="tab-pane fade" id="meters"><div class="quick-actions mb-3"><a class="btn btn-sm btn-primary" href="{% url 'asset_meter_create' %}">Add Meter</a><a class="btn btn-sm btn-outline-primary" href="{% url 'asset_meter_reading_create' %}">Record Reading</a></div><table class="table"><thead><tr><th>Meter</th><th>Unit</th><th>Current</th><th>Frequency</th></tr></thead><tbody>{% for meter in meters %}<tr><td>{{ meter.get_meter_type_display }}</td><td>{{ meter.unit }}</td><td>{{ meter.current_reading }}</td><td>{{ meter.reading_frequency|default:'-' }}</td></tr>{% empty %}<tr><td colspan="4" class="empty-cell">No meter configured.</td></tr>{% endfor %}</tbody></table></div>
+    <div class="tab-pane fade" id="history">
+      <div class="row g-4"><div class="col-lg-6"><h3>Status Timeline</h3><div class="timeline">{% for row in status_history %}<div class="timeline-item"><b>{{ row.effective_date }}</b><br>{{ row.previous_lifecycle_status|default:'-' }} → {{ row.new_lifecycle_status|default:'-' }} / {{ row.previous_operational_status|default:'-' }} → {{ row.new_operational_status|default:'-' }}<br><small>{{ row.reason }} · {{ row.changed_by }}</small></div>{% empty %}<div class="empty">No status history yet.</div>{% endfor %}</div></div><div class="col-lg-6"><h3>Condition History</h3><table class="table"><tbody>{% for c in condition_history %}<tr><td>{{ c.assessment_date }}</td><td>{{ c.get_condition_display }}</td><td>{{ c.score }}</td></tr>{% empty %}<tr><td>No condition assessments.</td></tr>{% endfor %}</tbody></table></div></div>
+      <h3 class="mt-4">Transfers and Change Requests</h3><table class="table"><tbody>{% for t in transfers %}<tr><td><a href="{% url 'asset_transfer_detail' t.pk %}">{{ t.transfer_no }}</a></td><td>{{ t.get_status_display }}</td><td>{{ t.destination_location }}</td></tr>{% empty %}<tr><td>No transfer records.</td></tr>{% endfor %}</tbody></table><table class="table mt-3"><tbody>{% for c in change_requests %}<tr><td>{{ c.get_requested_change_display }}</td><td>{{ c.get_status_display }}</td><td>{{ c.reason|truncatechars:80 }}</td></tr>{% empty %}<tr><td>No change requests.</td></tr>{% endfor %}</tbody></table>
+    </div>
+    <div class="tab-pane fade" id="qr">
+      <div class="info-grid"><div class="info-item"><label>QR Token</label><div>{{ asset.qr_token|default:'-' }}</div></div><div class="info-item"><label>QR Value</label><div>{{ asset.qr_code_value }}</div></div><div class="info-item"><label>Active</label><div>{{ asset.qr_active|yesno:'Yes,No' }}</div></div></div>
+      <p class="text-muted mt-3">QR is controlled by login. Technicians should scan a QR label and open this authorised asset record.</p>
+    </div>
+  </div>
+</div>
+
+<div class="quick-actions mt-4"><a class="btn btn-outline-primary" href="{% url 'asset_condition_assessment_create' %}?asset={{ asset.pk }}">Condition Assessment</a><a class="btn btn-outline-primary" href="{% url 'asset_criticality_assessment_create' %}?asset={{ asset.pk }}">Criticality Assessment</a></div>
+
+<div class="card-soft mt-4">
+  <h3>Controlled Status Action</h3>
+  <form method="post" action="{% url 'asset_status_change' asset.pk %}" class="row g-3">{% csrf_token %}
+    <div class="col-md-3"><label class="form-label">Lifecycle</label><select class="form-select" name="lifecycle_status"><option value="">Keep current</option>{% for value,label in asset.LIFECYCLE_STATUS_CHOICES %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label">Operational</label><select class="form-select" name="operational_status"><option value="">Keep current</option>{% for value,label in asset.OPERATIONAL_STATUS_CHOICES %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label">Effective Date</label><input type="date" name="effective_date" class="form-control" required></div>
+    <div class="col-md-4"><label class="form-label">Reason</label><input type="text" name="reason" class="form-control" required placeholder="Reason for status change"></div>
+    <div class="col-12"><button class="btn btn-primary">Save Status Change</button></div>
+  </form>
+</div>
+{% endblock %}

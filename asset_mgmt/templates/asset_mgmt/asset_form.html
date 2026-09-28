@@ -1,0 +1,30 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="card-soft form-card">
+    <p class="form-help">Asset ID is system-generated. Use the sections below to keep location, responsibility, technical, financial and lifecycle data clean.</p>
+    <ul class="nav nav-tabs" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#basic" type="button">Basic</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#org" type="button">Organisation</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tech" type="button">Technical</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#finance" type="button">Finance</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#status" type="button">Status & Risk</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#warranty" type="button">Warranty/AMC</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#meter" type="button">Meter & QR</button></li>
+    </ul>
+    <div class="tab-content pt-4">
+      <div class="tab-pane fade show active" id="basic"><div class="form-section"><h3>Basic Information</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='asset_type,tag_number,name,asset_description,category,subcategory,asset_class,image,remarks' %}</div></div></div>
+      <div class="tab-pane fade" id="org"><div class="form-section"><h3>Organisation and Location</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='plant,department,area,functional_location,cost_centre,business_unit,profit_centre,parent_asset,equipment_position,component_type,installed_under_parent_on,asset_owner,responsible_department,maintenance_department,user_department,responsible_engineer,maintenance_planner,custodian,escalation_manager' %}</div></div></div>
+      <div class="tab-pane fade" id="tech"><div class="form-section"><h3>Technical Information</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='manufacturer,model_number,serial_number,manufacturer_part_number,capacity_rating,material_of_construction,equipment_rating,design_pressure,operating_pressure,design_temperature,operating_temperature,power_rating,voltage,current,speed,weight,dimensions,protection_class,hazardous_area_classification,installation_specification,drawing_number,datasheet_number' %}</div></div></div>
+      <div class="tab-pane fade" id="finance"><div class="form-section"><h3>Procurement and Finance</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='purchase_date,purchase_order_reference,purchase_request_reference,vendor,purchase_cost,installation_cost,replacement_cost,currency,capitalisation_date,asset_accounting_number,depreciation_method,useful_life_years,residual_value,current_book_value,insurance_policy,insurance_expiry_date' %}</div></div></div>
+      <div class="tab-pane fade" id="status"><div class="form-section"><h3>Lifecycle, Operational Status, Criticality and Safety</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='commissioning_date,decommissioning_date,disposal_date,lifecycle_status,status,status_effective_date,status_reason,criticality,criticality_score,safety_critical,safety_function,regulatory_requirement,statutory_inspection_required,inspection_authority,certificate_number,certificate_expiry,permit_requirement,loto_requirement,risk_assessment_required,current_condition,condition_score,condition_assessment_date,condition_remarks,recommended_action,next_condition_assessment_date' %}</div></div></div>
+      <div class="tab-pane fade" id="warranty"><div class="form-section"><h3>Warranty and AMC</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='warranty_start_date,warranty_end_date,warranty_provider,warranty_type,warranty_terms,warranty_contact,warranty_claim_reference,contract_type,service_provider,contract_number,contract_start_date,contract_end_date,contract_value,included_services,excluded_services,response_time,visit_frequency,service_contact_person,renewal_reminder_date' %}</div></div></div>
+      <div class="tab-pane fade" id="meter"><div class="form-section"><h3>Meter, Availability and QR</h3><div class="row g-3">{% include 'asset_mgmt/partials/form_fields.html' with fields='meter_enabled,default_meter_type,default_meter_unit,current_meter_reading,initial_meter_reading,reading_frequency,meter_rollover_value,iot_enabled,scheduled_hours_per_day,availability_target,qr_active' %}</div></div></div>
+    </div>
+    <div class="d-flex gap-2 mt-4"><button class="btn btn-primary" type="submit">Save Asset Master</button><button class="btn btn-outline-secondary" type="button" onclick="history.back()">Cancel</button></div>
+  </div>
+</form>
+{% endblock %}

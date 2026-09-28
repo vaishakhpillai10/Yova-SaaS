@@ -1,0 +1,118 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{% block title %}CMMS Console{% endblock %}</title>
+  <link href="{% static 'asset_mgmt/css/offline-ui.css' %}" rel="stylesheet">
+  <link href="{% static 'asset_mgmt/css/app.css' %}?v=20260928-sidebar" rel="stylesheet">
+</head>
+<body>
+<div class="app-shell" id="appShell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div class="brand-copy">
+        <strong>CMMS Suite</strong>
+        <small>Assets • Work • Materials</small>
+      </div>
+    </div>
+    <div class="role-card">
+      <span>Signed in</span>
+      <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+      <small>{{ current_role_label }}</small>
+    </div>
+    <nav class="sidebar-nav">
+      {% for section in navigation_sections %}
+        {% if section.title == 'Main' %}
+          <small class="nav-section">{{ section.title }}</small>
+          {% for item in section.items %}
+            {% if item.children %}
+              <details class="nav-dropdown" {% if item.active %}open{% endif %}>
+                <summary class="nav-link nav-dropdown-toggle {% if item.active %}active{% endif %}">
+                  <span class="nav-icon">{{ item.icon }}</span><span class="nav-text">{{ item.label }}</span><span class="nav-caret" aria-hidden="true"></span>
+                </summary>
+                <div class="nav-submenu">
+                  {% for child in item.children %}
+                    <a class="nav-link {% if child.active %}active{% endif %}" href="{% url child.url_name %}">
+                      <span class="nav-icon">{{ child.icon }}</span><span class="nav-text">{{ child.label }}</span>
+                    </a>
+                  {% endfor %}
+                </div>
+              </details>
+            {% else %}
+              <a class="nav-link {% if item.active %}active{% endif %}" href="{% url item.url_name %}">
+                <span class="nav-icon">{{ item.icon }}</span><span class="nav-text">{{ item.label }}</span>
+              </a>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <details class="nav-dropdown nav-section-dropdown" {% if section.active %}open{% endif %}>
+            <summary class="nav-link nav-dropdown-toggle {% if section.active %}active{% endif %}">
+              <span class="nav-icon">{{ section.icon }}</span><span class="nav-text">{{ section.title }}</span><span class="nav-caret" aria-hidden="true"></span>
+            </summary>
+            <div class="nav-submenu">
+              {% for item in section.items %}
+                <a class="nav-link {% if item.active %}active{% endif %}" href="{% url item.url_name %}">
+                  <span class="nav-icon">{{ item.icon }}</span><span class="nav-text">{{ item.label }}</span>
+                </a>
+              {% endfor %}
+            </div>
+          </details>
+        {% endif %}
+      {% endfor %}
+      {% if request.user.is_staff %}
+        <small class="nav-section">System</small>
+        <a class="nav-link" href="/admin/"><span class="nav-icon">⚙</span><span class="nav-text">Django Admin</span></a>
+      {% endif %}
+    </nav>
+  </aside>
+  <main class="main-content">
+    <header class="topbar">
+      <div class="page-title-block">
+        <p class="eyebrow">Engineering CMMS</p>
+        <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+        <p class="page-subtitle">Professional asset, maintenance, materials and approval control.</p>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" type="button" id="sidebarToggle" aria-label="Toggle sidebar">☰</button>
+        <form class="top-search" action="{% url 'asset_list' %}" method="get">
+          <input class="form-control" type="search" name="q" placeholder="Search asset, tag, serial, manufacturer">
+          <button class="btn btn-primary">Search</button>
+        </form>
+        {% if request.user.is_authenticated %}
+          <div class="user-avatar">{{ request.user.username|slice:':1'|upper }}</div>
+          <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-light btn-sm">Logout</button></form>
+        {% endif %}
+      </div>
+    </header>
+    {% if messages %}
+      <div class="message-stack">{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }} shadow-sm">{{ message }}</div>{% endfor %}</div>
+    {% endif %}
+    <div class="page-enter">{% block content %}{% endblock %}</div>
+  </main>
+</div>
+<script src="{% static 'asset_mgmt/js/offline-ui.js' %}"></script>
+<script>
+  const shell = document.getElementById('appShell');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const mobileNav = window.matchMedia('(max-width: 900px)');
+  sidebarToggle?.addEventListener('click', () => {
+    if (mobileNav.matches) shell.classList.toggle('mobile-nav-open');
+    else shell.classList.toggle('sidebar-collapsed');
+  });
+  document.querySelectorAll('.sidebar a.nav-link').forEach((link) => link.addEventListener('click', () => {
+    if (mobileNav.matches) shell.classList.remove('mobile-nav-open');
+  }));
+  const syncNavMode = () => {
+    shell.classList.remove('mobile-nav-open');
+    if (mobileNav.matches) shell.classList.remove('sidebar-collapsed');
+  };
+  syncNavMode();
+  mobileNav.addEventListener?.('change', syncNavMode);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

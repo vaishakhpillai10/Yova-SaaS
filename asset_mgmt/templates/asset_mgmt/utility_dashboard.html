@@ -1,0 +1,57 @@
+{% extends 'asset_mgmt/base.html' %}
+{% block page_heading %}Utility &amp; Electrical Dashboard{% endblock %}
+{% block content %}
+
+<section class="dashboard-toolbar surface mb-4">
+  <div>
+    <div class="dashboard-kicker">Energy and utilities</div>
+    <h2 class="dashboard-title">Consumption and meter readings</h2>
+    <p class="dashboard-copy">Track utility consumption across active meters and log new readings.</p>
+  </div>
+  <div class="dashboard-filter">
+    <a class="btn btn-primary" href="{% url 'meter_reading_create' %}">Add reading</a>
+    <a class="btn btn-outline-primary" href="{% url 'meter_list' %}">Meter master</a>
+  </div>
+</section>
+
+<section class="dashboard-kpi-grid mb-4" aria-label="Utility summary">
+  <a class="dashboard-kpi primary" href="{% url 'meter_list' %}"><span class="kpi-label">Active meters</span><strong>{{ meter_count }}</strong><small>Registered and recording</small></a>
+</section>
+
+<section class="dashboard-chart-grid">
+  <div class="chart-card chart-card-wide">
+    <div class="chart-card-head">
+      <div>
+        <span class="chart-eyebrow">Recent period</span>
+        <h3>Consumption by utility</h3>
+        <p>Total recorded consumption grouped by utility type.</p>
+      </div>
+    </div>
+    <div class="chart-shell chart-shell-tall"><canvas id="utility"></canvas></div>
+  </div>
+
+  <div class="chart-card chart-card-wide">
+    <div class="chart-card-head">
+      <div>
+        <span class="chart-eyebrow">Meter log</span>
+        <h3>Recent readings</h3>
+        <p>Latest readings captured against each meter.</p>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Date</th><th>Meter</th><th>Consumption</th></tr></thead>
+        <tbody>
+          {% for r in recent_readings %}
+            <tr><td>{{ r.reading_date }}</td><td><strong>{{ r.meter.meter_code }}</strong></td><td>{{ r.consumption }} {{ r.meter.unit }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="empty-cell"><strong>No readings recorded yet</strong><small>Use “Add reading” to log the first meter reading.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+{% block scripts %}<script>const u={{ utility_json|safe }};new Chart(document.getElementById('utility'),{type:'bar',data:{labels:u.labels,datasets:[{label:'Consumption',data:u.values}]}});</script>{% endblock %}

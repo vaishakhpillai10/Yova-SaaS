@@ -1,0 +1,12 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}Work Orders{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <form method="get" class="search-form"><input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Search work orders"><button class="btn btn-outline-primary">Search</button></form>
+  {% can_access 'work_order_create' as can_create_wo %}{% if can_create_wo %}<a href="{% url 'work_order_create' %}" class="btn btn-primary">Create Work Order</a>{% endif %}
+</div>
+<div class="card-soft"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>WO</th><th>Asset</th><th>Plant</th><th>Functional Location</th><th>Type</th><th>Assigned</th><th>Permit</th><th>Status</th><th></th></tr></thead><tbody>{% for wo in work_orders %}<tr><td><a href="{{ wo.get_absolute_url }}"><strong>{{ wo.wo_number }}</strong></a></td><td>{{ wo.asset.asset_id }}</td><td>{{ wo.plant|default:'-' }}</td><td>{{ wo.functional_location|default:'-' }}</td><td>{{ wo.get_work_type_display }}</td><td>{{ wo.assigned_to|default:'-' }}</td><td>{{ wo.permit_required|yesno:'Yes,No' }}</td><td><span class="status-pill">{{ wo.get_status_display }}</span></td><td class="text-end action-cell">
+{% can_access 'work_order_update' as can_update_wo %}{% if can_update_wo %}<a href="{% url 'work_order_update' wo.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
+</td></tr>{% empty %}<tr><td colspan="9" class="empty-cell">No work orders found.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

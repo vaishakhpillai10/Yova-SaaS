@@ -1,0 +1,32 @@
+{% extends 'asset_mgmt/base.html' %}
+{% block page_heading %}Maintenance History & Reliability{% endblock %}
+{% block content %}
+<div class="process-box mb-3"><strong>Excel replacement:</strong> filter maintenance history by period, plant, TAG, work centre, criticality, work type, activity, permit and shift. KPI calculations use the corrected breakdown-specific reliability logic.</div>
+<div class="card-soft mb-3"><form method="get" class="row g-2">
+<div class="col-md-2"><label class="form-label">From</label><input class="form-control" type="date" name="from_date" value="{{ start_date|date:'Y-m-d' }}"></div>
+<div class="col-md-2"><label class="form-label">To</label><input class="form-control" type="date" name="to_date" value="{{ end_date|date:'Y-m-d' }}"></div>
+<div class="col-md-2"><label class="form-label">Plant</label><select class="form-select" name="plant"><option value="">All</option>{% for x in plants %}<option value="{{ x.pk }}" {% if request.GET.plant == x.pk|stringformat:'s' %}selected{% endif %}>{{ x.code }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label class="form-label">TAG / Asset</label><select class="form-select" name="asset"><option value="">All</option>{% for x in asset_options %}<option value="{{ x.pk }}" {% if request.GET.asset == x.pk|stringformat:'s' %}selected{% endif %}>{{ x.tag_number|default:x.asset_id }} - {{ x.name }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label class="form-label">Work Centre</label><select class="form-select" name="work_centre"><option value="">All</option>{% for x in work_centres %}<option value="{{ x.pk }}" {% if request.GET.work_centre == x.pk|stringformat:'s' %}selected{% endif %}>{{ x.code }} - {{ x.name }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><label class="form-label">Criticality</label><select class="form-select" name="criticality"><option value="">All</option>{% for value,label in criticality_choices %}<option value="{{ value }}" {% if request.GET.criticality == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><label class="form-label">Work Type</label><select class="form-select" name="work_type"><option value="">All</option>{% for value,label in work_type_choices %}<option value="{{ value }}" {% if request.GET.work_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><label class="form-label">Activity</label><select class="form-select" name="activity_type"><option value="">All</option>{% for value,label in activity_type_choices %}<option value="{{ value }}" {% if request.GET.activity_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><label class="form-label">Permit Type</label><select class="form-select" name="permit_type"><option value="">All</option>{% for value,label in permit_type_choices %}<option value="{{ value }}" {% if request.GET.permit_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><label class="form-label">Shift</label><select class="form-select" name="shift"><option value="">All</option>{% for value,label in shift_choices %}<option value="{{ value }}" {% if request.GET.shift == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-md-2 d-flex align-items-end gap-2"><button class="btn btn-primary">Apply</button><a class="btn btn-light" href="{% url 'maintenance_history_reliability' %}">Reset</a></div>
+</form></div>
+<div class="row g-3 mb-3">
+{% for label,value,suffix in kpi_cards %}{% endfor %}
+<div class="col-md-2"><div class="card-soft"><small>Breakdowns</small><h3>{{ metrics.breakdown_failures }}</h3></div></div>
+<div class="col-md-2"><div class="card-soft"><small>Breakdown Hours</small><h3>{{ metrics.breakdown_downtime_hours }}</h3></div></div>
+<div class="col-md-2"><div class="card-soft"><small>MTTR</small><h3>{{ metrics.mttr_hours|default:'-' }} h</h3></div></div>
+<div class="col-md-2"><div class="card-soft"><small>MTBF</small><h3>{{ metrics.mtbf_hours|default:'-' }} h</h3></div></div>
+<div class="col-md-2"><div class="card-soft"><small>Availability</small><h3>{{ metrics.availability_percent|default:'-' }}%</h3></div></div>
+<div class="col-md-2"><div class="card-soft"><small>Failure Rate</small><h3>{{ metrics.failure_rate_per_1000_hours|default:'-' }}</h3><small>/ 1000 h</small></div></div>
+</div>
+{% if metrics.warnings %}<div class="alert alert-warning">{% for w in metrics.warnings %}<div>{{ w }}</div>{% endfor %}</div>{% endif %}
+<div class="toolbar"><div><strong>History:</strong> {{ history|length }} records</div><div class="d-flex gap-2"><a class="btn btn-outline-success" href="{% url 'maintenance_history_excel' %}?{{ request.GET.urlencode }}">Export Excel</a><a class="btn btn-outline-danger" href="{% url 'maintenance_history_pdf' %}?{{ request.GET.urlencode }}">Export PDF</a></div></div>
+<div class="card-soft"><div class="table-responsive"><table class="table table-hover table-sm align-middle"><thead><tr><th>Date</th><th>WO</th><th>TAG</th><th>Equipment</th><th>WC</th><th>Criticality</th><th>Work / Activity</th><th>Permit</th><th>Shift</th><th>Repair h</th><th>Technician</th><th>Supervisor</th><th>Cost</th><th>Remarks</th></tr></thead><tbody>
+{% for wo in history %}<tr><td>{{ wo.actual_end|default:wo.created_at|date:'d M Y' }}</td><td><a href="{% url 'work_order_detail' wo.pk %}">{{ wo.wo_number }}</a></td><td>{{ wo.asset.tag_number|default:wo.asset.asset_id }}</td><td>{{ wo.asset.name }}</td><td>{{ wo.work_centre.code }}</td><td>{{ wo.asset.get_criticality_display }}</td><td>{{ wo.get_work_type_display }}<br><small>{{ wo.get_activity_type_display }}</small></td><td>{% for p in wo.permits.all %}{{ p.get_permit_type_display }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}</td><td>{{ wo.get_shift_display }}</td><td>{{ wo.repair_hours|default:'-' }}</td><td>{{ wo.assigned_to|default:'-' }}</td><td>{{ wo.supervisor|default:'-' }}</td><td>{{ wo.actual_cost }}</td><td>{{ wo.completion_notes|default:'-'|truncatechars:70 }}</td></tr>{% empty %}<tr><td colspan="14" class="empty-cell">No maintenance history found for the selected filters.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

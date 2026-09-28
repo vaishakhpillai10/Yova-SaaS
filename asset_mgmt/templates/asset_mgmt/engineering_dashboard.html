@@ -1,0 +1,92 @@
+{% extends 'asset_mgmt/base.html' %}
+{% block page_heading %}Engineering Dashboard{% endblock %}
+{% block content %}
+
+<section class="dashboard-toolbar surface mb-4">
+  <div>
+    <div class="dashboard-kicker">Engineering workload</div>
+    <h2 class="dashboard-title">Work orders and approvals</h2>
+    <p class="dashboard-copy">Current execution load and purchase requests waiting on your decision.</p>
+  </div>
+  <form class="dashboard-filter" method="get">
+    <div>
+      <label class="form-label" for="engPlant">Plant</label>
+      <select class="form-select" id="engPlant" name="plant">
+        <option value="">All permitted plants</option>
+        {% for p in plants %}<option value="{{ p.pk }}" {% if selected_plant and selected_plant.pk == p.pk %}selected{% endif %}>{{ p.code }} - {{ p.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary">Apply filter</button>
+  </form>
+</section>
+
+<section class="dashboard-chart-grid mb-4">
+  <div class="chart-card">
+    <div class="chart-card-head">
+      <div>
+        <span class="chart-eyebrow">Execution</span>
+        <h3>Work order status</h3>
+        <p>Orders in the selected scope grouped by current stage.</p>
+      </div>
+    </div>
+    <div class="chart-shell"><canvas id="woChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-head">
+      <div>
+        <span class="chart-eyebrow">Approvals</span>
+        <h3>Pending purchase requests</h3>
+        <p>Requests waiting for engineering sign-off.</p>
+      </div>
+    </div>
+    <div class="list-group list-group-flush">
+      {% for pr in pending_prs %}
+        <a class="list-group-item" href="{% url 'purchase_request_detail' pr.pk %}"><b>{{ pr.request_no }}</b> · {{ pr.item }} · {{ pr.quantity }}</a>
+      {% empty %}
+        <div class="empty"><strong>Nothing waiting on you</strong>No purchase requests need approval right now.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="dashboard-list-grid">
+  <div class="surface">
+    <div class="section-head compact">
+      <div><h3>Assigned &amp; team work orders</h3><p>Orders assigned to you or your work centre.</p></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>WO</th><th>Asset</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for wo in assigned_work_orders %}
+            <tr><td><a href="{% url 'work_order_detail' wo.pk %}"><strong>{{ wo.wo_number }}</strong></a></td><td>{{ wo.asset.asset_id }}</td><td>{{ wo.planned_end|default:'-' }}</td><td><span class="status-pill">{{ wo.get_status_display }}</span></td></tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty-cell"><strong>No assigned work orders</strong><small>Orders appear here once they are assigned to you or your work centre.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="surface">
+    <div class="section-head compact">
+      <div><h3>Overdue work orders</h3><p>Past their planned finish date and still open.</p></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>WO</th><th>Asset</th><th>Work centre</th></tr></thead>
+        <tbody>
+          {% for wo in overdue_work_orders %}
+            <tr><td><strong>{{ wo.wo_number }}</strong></td><td>{{ wo.asset.asset_id }}</td><td>{{ wo.work_centre.code }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="empty-cell"><strong>Nothing overdue</strong><small>All open work orders are within their planned dates.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+{% block scripts %}<script>const x={{ wo_status_json|safe }};new Chart(document.getElementById('woChart'),{type:'bar',data:{labels:x.labels,datasets:[{label:'Work Orders',data:x.values}]}});</script>{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}Asset Dashboard{% endblock %}
+{% block content %}
+{% can_access 'asset_create' as can_asset_create %}
+<section class="dashboard-toolbar surface mb-4">
+  <div><div class="dashboard-kicker">Asset master intelligence</div><h2 class="dashboard-title">Asset portfolio overview</h2><p class="dashboard-copy">Current health, lifecycle, location and criticality across the selected plant scope.</p></div>
+  <form class="dashboard-filter dashboard-filter-actions" method="get">
+    <div><label class="form-label" for="assetPlant">Plant</label><select class="form-select" id="assetPlant" name="plant"><option value="">All asset plants</option>{% for plant in plants %}<option value="{{ plant.pk }}" {% if selected_plant and selected_plant.pk == plant.pk %}selected{% endif %}>{{ plant.code }} - {{ plant.name }}</option>{% endfor %}</select></div>
+    <button class="btn btn-primary">Apply</button><a class="btn btn-light" href="{% url 'asset_list' %}{% if selected_plant %}?plant={{ selected_plant.pk }}{% endif %}">Asset register</a>{% if can_asset_create %}<a class="btn btn-outline-primary" href="{% url 'asset_create' %}">Register asset</a>{% endif %}
+  </form>
+</section>
+
+<section class="dashboard-kpi-grid mb-4">
+  <a class="dashboard-kpi" href="{% url 'asset_list' %}{% if selected_plant %}?plant={{ selected_plant.pk }}{% endif %}"><span class="kpi-label">Total assets</span><strong>{{ total_assets }}</strong><small>Complete scoped register</small></a>
+  <a class="dashboard-kpi success" href="{% url 'asset_list' %}{% if selected_plant %}?plant={{ selected_plant.pk }}{% endif %}"><span class="kpi-label">Active assets</span><strong>{{ active_assets }}</strong><small>Active master records</small></a>
+  <a class="dashboard-kpi" href="{% url 'asset_list' %}?operational=RUNNING{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}"><span class="kpi-label">Running</span><strong>{{ running_assets }}</strong><small>{{ asset_readiness_percent }}% of active assets</small></a>
+  <a class="dashboard-kpi warning" href="{% url 'asset_list' %}?operational=MAINTENANCE{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}"><span class="kpi-label">Under maintenance</span><strong>{{ maintenance_assets }}</strong><small>Currently unavailable for work</small></a>
+  <a class="dashboard-kpi danger" href="{% url 'asset_list' %}?operational=BREAKDOWN{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}"><span class="kpi-label">Breakdown</span><strong>{{ breakdown_assets }}</strong><small>Immediate maintenance attention</small></a>
+  <a class="dashboard-kpi danger" href="{% url 'asset_list' %}?critical=1{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}"><span class="kpi-label">Critical assets</span><strong>{{ critical_assets }}</strong><small>High/critical or safety-critical</small></a>
+</section>
+
+<section class="asset-readiness surface mb-4">
+  <div><span class="dashboard-kicker">Portfolio readiness</span><h3>{{ asset_readiness_percent }}% running</h3><p>Running assets as a share of active asset-master records.</p></div>
+  <div class="progress-track" aria-label="Asset readiness {{ asset_readiness_percent }} percent"><span style="width:{{ asset_readiness_percent }}%"></span></div>
+  <div class="readiness-meta"><span><b>{{ stopped_assets }}</b> stopped</span><span><b>{{ maintenance_assets }}</b> maintenance</span><span><b>{{ breakdown_assets }}</b> breakdown</span></div>
+</section>
+
+<section class="dashboard-chart-grid mb-4">
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Operational health</span><h3>Asset status</h3><p>Running, stopped, standby, maintenance and breakdown.</p></div></div><div class="chart-shell chart-shell-donut"><canvas id="assetStatus" aria-label="Asset status chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Lifecycle</span><h3>Lifecycle distribution</h3><p>Current asset-master lifecycle states.</p></div></div><div class="chart-shell chart-shell-donut"><canvas id="lifecycleStatus" aria-label="Asset lifecycle chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Footprint</span><h3>Assets by plant</h3><p>Distribution across permitted plants.</p></div></div><div class="chart-shell"><canvas id="plantAssets" aria-label="Assets by plant chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Functional location</span><h3>Top locations</h3><p>Highest asset concentration by functional location.</p></div></div><div class="chart-shell chart-shell-tall"><canvas id="locationAssets" aria-label="Assets by functional location chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Classification</span><h3>Top categories</h3><p>Largest asset categories in the selected scope.</p></div></div><div class="chart-shell chart-shell-tall"><canvas id="categoryAssets" aria-label="Assets by category chart"></canvas></div></article>
+</section>
+
+<section class="dashboard-list-grid asset-lists">
+  <article class="surface"><div class="section-head compact"><div><h3>Recently registered</h3><p>Newest records in the asset master.</p></div><a href="{% url 'asset_list' %}">View all</a></div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>Asset</th><th>Plant</th><th>Status</th><th>Criticality</th></tr></thead><tbody>{% for asset in recent_assets %}<tr><td><a href="{{ asset.get_absolute_url }}"><strong>{{ asset.asset_id }}</strong></a><small class="table-subtext">{{ asset.name }}</small></td><td>{{ asset.plant.code }}</td><td><span class="status-pill">{{ asset.get_status_display }}</span></td><td>{{ asset.get_criticality_display }}</td></tr>{% empty %}<tr><td colspan="4" class="empty-cell"><div class="empty">No asset records yet.</div></td></tr>{% endfor %}</tbody></table></div></article>
+  <article class="surface"><div class="section-head compact"><div><h3>Critical asset watch</h3><p>Highest criticality scores requiring visibility.</p></div><a href="{% url 'asset_list' %}?critical=1{% if selected_plant %}&plant={{ selected_plant.pk }}{% endif %}">Open all</a></div><div class="watch-list">{% for asset in critical_asset_list %}<a href="{{ asset.get_absolute_url }}" class="watch-item"><span><strong>{{ asset.asset_id }}</strong><small>{{ asset.name }}</small><em>{{ asset.get_status_display }}</em></span><b>{{ asset.criticality_score|default:'-' }}</b></a>{% empty %}<div class="empty">No critical assets in this scope.</div>{% endfor %}</div></article>
+</section>
+{% endblock %}
+{% block scripts %}<script>
+const asset={{ asset_status_json|safe }}, lc={{ lifecycle_json|safe }}, plant={{ plant_asset_json|safe }}, loc={{ location_asset_json|safe }}, cat={{ category_asset_json|safe }};
+new Chart(document.getElementById('assetStatus'),{type:'doughnut',data:{labels:asset.labels,datasets:[{data:asset.values}]},options:{plugins:{legend:{position:'bottom'}},onClick:(e,els)=>{if(els.length)location.href='{% url "asset_list" %}?operational='+(asset.codes?.[els[0].index]||'')}}});
+new Chart(document.getElementById('lifecycleStatus'),{type:'doughnut',data:{labels:lc.labels,datasets:[{data:lc.values}]},options:{plugins:{legend:{position:'bottom'}}}});
+new Chart(document.getElementById('plantAssets'),{type:'bar',data:{labels:plant.labels,datasets:[{label:'Assets',data:plant.values}]},options:{plugins:{legend:{display:false}}}});
+new Chart(document.getElementById('locationAssets'),{type:'bar',data:{labels:loc.labels,datasets:[{label:'Assets',data:loc.values}]},options:{indexAxis:'y',plugins:{legend:{display:false}}}});
+new Chart(document.getElementById('categoryAssets'),{type:'bar',data:{labels:cat.labels,datasets:[{label:'Assets',data:cat.values}]},options:{indexAxis:'y',plugins:{legend:{display:false}}}});
+</script>{% endblock %}

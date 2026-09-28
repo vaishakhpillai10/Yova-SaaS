@@ -1,0 +1,61 @@
+PASS  QA-24 Versioned migration exists
+PASS  Migration model/field snapshot matches models.py
+PASS  QA-04 All POST forms have CSRF tokens
+PASS  QA-26 Core UI has no external CDN dependency
+PASS  WO status is not freely editable
+PASS  QA-08 Material quantity_used is ledger-derived
+PASS  QA-03 PO type/status are controlled actions
+PASS  Invoice clearance/payment are controlled actions
+PASS  Service PO type is derived before ModelForm model validation
+PASS  Goods receipt derives hidden plant/item before model validation
+PASS  Ambiguous multi-operation material issue is rejected
+PASS  QA-13 WO exception action reject_approval exists
+PASS  QA-13 WO exception action return_planning exists
+PASS  QA-13 WO exception action return_execution exists
+PASS  QA-13 WO exception action cancel exists
+PASS  QA-14 WO creator cannot self-approve
+PASS  WO technical lock enforced
+PASS  Maintenance record-level WO control exists
+PASS  QA-07 Capacity uses persons_required labour-hours
+PASS  Technician double-booking blocked
+PASS  QA-06 Predecessor enforced during scheduling
+PASS  QA-06 Predecessor enforced during confirmation
+PASS  QA-06 Predecessor enforced during operation action
+PASS  QA-05 Transfers protect reserved stock
+PASS  QA-09 Material issue is WO-lifecycle gated
+PASS  Material over-issue is blocked
+PASS  Material consumption updates reservation ledger
+PASS  Received WO shortage stock becomes reserved
+PASS  QA-01 TECO does not fabricate material issues
+PASS  QA-02 PO type derives from material/service requirement
+PASS  QA-03 New PO is forced to DRAFT
+PASS  Goods receipts require released Material PO
+PASS  QA-11 SES cumulative quantity/value ceilings
+PASS  Vendor invoices require receipt/service completion
+PASS  Vendor invoice clear/hold/payment actions exist
+PASS  PO controlled action endpoint exists
+PASS  QA-12 Business close requires PR/PO final closure
+PASS  QA-10 Labour entry is execution-phase gated
+PASS  QA-23 Downtime blocked after TECO
+PASS  Financial settlement rules required
+PASS  QA-19 Multiple same-day asset-meter readings allowed
+PASS  QA-20 Latest chronological meter reading is authoritative
+PASS  PM durable call history exists
+PASS  QA-21 PM compliance uses durable PMCall denominator
+PASS  QA-22 Maintenance cost is transaction-period based
+PASS  MTTR uses completed breakdown repair actual times
+PASS  MTBF uses scoped assets, scheduled hours and breakdown downtime
+PASS  Plant scoping helper covers PM/WO/meter/procurement
+PASS  QA-16 Asset BOM UI
+PASS  Asset condition assessment UI
+PASS  Asset criticality assessment UI
+PASS  QA-17 Inspection execution UI
+PASS  QA-17 Calibration execution UI
+PASS  QA-18 Shutdown-job update UI
+PASS  QA-25 General dashboard includes CRITICAL assets
+PASS  QA remediation regression tests included
+
+Summary
+  Passed: 56
+  Failed: 0
+STATIC QA RELEASE GATE PASSED

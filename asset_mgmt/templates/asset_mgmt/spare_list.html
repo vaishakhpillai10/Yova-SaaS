@@ -1,0 +1,26 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}Inventory / Stock{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <form method="get" class="search-form"><input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Search item no, description, vendor, location"><button class="btn btn-outline-primary">Search</button></form>
+  {% can_access 'spare_create' as can_create_spare %}{% if can_create_spare %}<a href="{% url 'spare_create' %}" class="btn btn-primary">Add Item</a>{% endif %}
+</div>
+<div class="card-soft"><div class="table-responsive"><table class="table table-hover align-middle">
+  <thead><tr><th>Item No</th><th>Item Description</th><th>Category</th><th>Class</th><th>Stock Qty</th><th>Unit</th><th>Location</th><th>Rate</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+  <tbody>{% for spare in spares %}<tr>
+    <td><strong>{{ spare.item_no }}</strong><br><small>Code: {{ spare.part_code }}</small></td>
+    <td>{{ spare.name }}<br><small>{{ spare.item_description|truncatechars:80 }}</small></td>
+    <td>{{ spare.get_item_category_display }}</td>
+    <td>{{ spare.get_item_class_display }}</td>
+    <td>{{ spare.current_stock }}</td>
+    <td>{{ spare.unit }}</td>
+    <td>{{ spare.item_location|default:spare.store_location|default:'-' }}</td>
+    <td>{{ spare.item_rate }}</td>
+    <td>{% if spare.is_low_stock %}<span class="badge-soft danger">Low Stock</span>{% else %}<span class="badge-soft success">OK</span>{% endif %}</td>
+    <td class="text-end action-cell">
+      {% can_access 'spare_update' as can_update_spare %}{% if can_update_spare %}<a href="{% url 'spare_update' spare.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
+    </td>
+  </tr>{% empty %}<tr><td colspan="10" class="empty-cell">No inventory items found.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

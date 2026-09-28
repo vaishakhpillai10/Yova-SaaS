@@ -1,0 +1,52 @@
+{% extends 'asset_mgmt/base.html' %}
+{% block page_heading %}Maintenance Manager Dashboard{% endblock %}
+{% block content %}
+<section class="dashboard-toolbar surface mb-4">
+  <div><div class="dashboard-kicker">Maintenance command centre</div><h2 class="dashboard-title">Reliability, PM and workload control</h2><p class="dashboard-copy">Manager KPIs for {{ dashboard_period_label }} with current backlog and seven-day capacity.</p></div>
+  <form class="dashboard-filter dashboard-filter-actions" method="get"><div><label class="form-label" for="managerPlant">Plant</label><select class="form-select" id="managerPlant" name="plant"><option value="">All permitted plants</option>{% for p in plants %}<option value="{{ p.pk }}" {% if selected_plant and selected_plant.pk == p.pk %}selected{% endif %}>{{ p.code }} - {{ p.name }}</option>{% endfor %}</select></div><button class="btn btn-primary">Apply</button><a class="btn btn-light" href="{% url 'scheduling_board' %}">Scheduling board</a><a class="btn btn-outline-primary" href="{% url 'maintenance_history_reliability' %}">Reliability history</a></form>
+</section>
+
+<section class="dashboard-kpi-grid mb-4">
+  <div class="dashboard-kpi success"><span class="kpi-label">PM compliance</span><strong>{% if pm_compliance != None %}{{ pm_compliance }}%{% else %}-{% endif %}</strong><small>{% if pm_due_period %}{{ pm_completed }} of {{ pm_due_period }} period calls completed{% else %}No PM calls due in period{% endif %}</small></div>
+  <div class="dashboard-kpi"><span class="kpi-label">MTTR</span><strong>{% if metrics.mttr_hours != None %}{{ metrics.mttr_hours }} h{% else %}-{% endif %}</strong><small>Mean repair time</small></div>
+  <div class="dashboard-kpi"><span class="kpi-label">MTBF</span><strong>{% if metrics.mtbf_hours != None %}{{ metrics.mtbf_hours }} h{% else %}-{% endif %}</strong><small>Mean operating time between failures</small></div>
+  <div class="dashboard-kpi success"><span class="kpi-label">Availability</span><strong>{% if metrics.availability_percent != None %}{{ metrics.availability_percent }}%{% else %}-{% endif %}</strong><small>Scheduled operating availability</small></div>
+  <div class="dashboard-kpi"><span class="kpi-label">Failure rate</span><strong>{% if metrics.failure_rate_per_1000_hours != None %}{{ metrics.failure_rate_per_1000_hours }}{% else %}-{% endif %}</strong><small>failures / 1,000 operating h</small></div>
+  <div class="dashboard-kpi"><span class="kpi-label">Maintenance cost</span><strong>₹{{ maintenance_cost|floatformat:0 }}</strong><small>Transactions in current period</small></div>
+</section>
+
+<section class="manager-action-grid mb-4">
+  <a class="manager-action" href="{% url 'work_order_list' %}?open=1"><span>Backlog</span><strong>{{ backlog_count }}</strong><small>open work orders</small></a>
+  <a class="manager-action danger" href="{% url 'work_order_list' %}?work_type=BREAKDOWN&open=1"><span>Open breakdowns</span><strong>{{ open_breakdowns }}</strong><small>breakdown workload</small></a>
+  <a class="manager-action warning" href="{% url 'work_order_list' %}?status=PENDING_APPROVAL"><span>Approval queue</span><strong>{{ approval_queue }}</strong><small>awaiting decision</small></a>
+  <a class="manager-action" href="{% url 'work_order_list' %}?status=READY_TO_SCHEDULE"><span>Ready to schedule</span><strong>{{ ready_schedule }}</strong><small>planning complete</small></a>
+  <a class="manager-action" href="{% url 'scheduling_board' %}"><span>Capacity utilization</span><strong>{{ capacity_utilization }}%</strong><small>{{ capacity_overloaded }} overloaded work centre(s)</small></a>
+  <a class="manager-action danger" href="{% url 'work_order_list' %}?open=1"><span>Overdue WO</span><strong>{{ overdue_wo }}</strong><small>past planned finish</small></a>
+</section>
+
+{% if metrics.warnings %}<div class="dashboard-note warning-note mb-4">{{ metrics.warnings|join:" " }}</div>{% endif %}
+
+<section class="dashboard-chart-grid mb-4">
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Preventive maintenance</span><h3>PM performance</h3><p>Completed versus due/missed calls in the period.</p></div><span class="chart-unit">{% if pm_compliance != None %}{{ pm_compliance }}%{% else %}N/A{% endif %}</span></div><div class="chart-shell chart-shell-donut"><canvas id="pmPerformance" aria-label="PM performance chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Backlog</span><h3>Work-order pipeline</h3><p>Current open work by workflow stage.</p></div></div><div class="chart-shell"><canvas id="managerPipeline" aria-label="Open work order pipeline chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Resources</span><h3>Work-centre utilization</h3><p>Seven-day planned labour-hours versus configured capacity.</p></div><span class="chart-unit">%</span></div><div class="chart-shell"><canvas id="capacityChart" aria-label="Work centre capacity utilization chart"></canvas></div></article>
+  <article class="chart-card"><div class="chart-card-head"><div><span class="chart-eyebrow">Cost</span><h3>Maintenance cost mix</h3><p>Current-period material, labour, service and other cost.</p></div></div><div class="chart-shell chart-shell-donut"><canvas id="costMix" aria-label="Maintenance cost breakdown chart"></canvas></div></article>
+</section>
+
+<section class="manager-table-grid mb-4">
+  <article class="surface"><div class="section-head compact"><div><h3>Weekly work-centre capacity</h3><p>Capacity uses planned hours × people required.</p></div><a href="{% url 'scheduling_board' %}">Open board</a></div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>Work centre</th><th>Capacity h</th><th>Planned h</th><th>Utilization</th></tr></thead><tbody>{% for row in capacity_rows %}<tr><td><strong>{{ row.work_centre.code }}</strong><small class="table-subtext">{{ row.work_centre.name }}</small></td><td>{{ row.capacity_hours|floatformat:1 }}</td><td>{{ row.planned_hours|floatformat:1 }}</td><td><span class="utilization-pill {% if row.utilization_percent > 100 %}over{% elif row.utilization_percent >= 80 %}high{% else %}normal{% endif %}">{{ row.utilization_percent }}%</span></td></tr>{% empty %}<tr><td colspan="4" class="empty-cell"><div class="empty">No work centres in this scope.</div></td></tr>{% endfor %}</tbody></table></div></article>
+  <article class="surface"><div class="section-head compact"><div><h3>PM due now</h3><p>Calendar, counter or strategy-triggered plans.</p></div><span class="count-badge">{{ pm_due }}</span></div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>Plan</th><th>Asset</th><th>Due reason</th></tr></thead><tbody>{% for plan, reason in due_pm_rows %}<tr><td><a href="{% url 'pm_plan_detail' plan.pk %}"><strong>{{ plan.name }}</strong></a></td><td>{{ plan.asset.asset_id }}</td><td>{{ reason }}</td></tr>{% empty %}<tr><td colspan="3" class="empty-cell"><div class="empty">No PM currently due.</div></td></tr>{% endfor %}</tbody></table></div></article>
+</section>
+
+<section class="dashboard-list-grid">
+  <article class="surface"><div class="section-head compact"><div><h3>Scheduling queue</h3><p>Orders waiting for scheduling or dispatch.</p></div><a href="{% url 'scheduling_board' %}">Manage</a></div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>WO</th><th>Asset</th><th>Work centre</th><th>Status</th><th>Planned start</th></tr></thead><tbody>{% for wo in schedule_queue %}<tr><td><a href="{% url 'work_order_detail' wo.pk %}"><strong>{{ wo.wo_number }}</strong></a></td><td>{{ wo.asset.asset_id }}</td><td>{{ wo.work_centre.code }}</td><td><span class="status-pill">{{ wo.get_status_display }}</span></td><td>{{ wo.planned_start|date:'d M Y H:i'|default:'-' }}</td></tr>{% empty %}<tr><td colspan="5" class="empty-cell"><div class="empty">No orders waiting for scheduling or dispatch.</div></td></tr>{% endfor %}</tbody></table></div></article>
+  <article class="surface"><div class="section-head compact"><div><h3>Recent breakdown work</h3><p>Latest breakdown-related work orders.</p></div><a href="{% url 'work_order_list' %}">View all</a></div><div class="table-responsive"><table class="table dashboard-table"><thead><tr><th>WO</th><th>Asset</th><th>Status</th></tr></thead><tbody>{% for wo in recent_breakdowns %}<tr><td><a href="{% url 'work_order_detail' wo.pk %}"><strong>{{ wo.wo_number }}</strong></a></td><td>{{ wo.asset.asset_id }}</td><td><span class="status-pill">{{ wo.get_status_display }}</span></td></tr>{% empty %}<tr><td colspan="3" class="empty-cell"><div class="empty">No breakdown records.</div></td></tr>{% endfor %}</tbody></table></div></article>
+</section>
+{% endblock %}
+{% block scripts %}<script>
+const pipeline={{ manager_pipeline_json|safe }}, capacity={{ manager_capacity_json|safe }}, pm={{ manager_pm_json|safe }}, cost={{ manager_cost_json|safe }};
+new Chart(document.getElementById('pmPerformance'),{type:'doughnut',data:{labels:pm.labels,datasets:[{data:pm.values}]},options:{plugins:{legend:{position:'bottom'}}}});
+new Chart(document.getElementById('managerPipeline'),{type:'bar',data:{labels:pipeline.labels,datasets:[{label:'Open work orders',data:pipeline.values}]},options:{plugins:{legend:{display:false}},onClick:(e,els)=>{if(els.length)location.href='{% url "work_order_list" %}?status='+(pipeline.codes?.[els[0].index]||'')}}});
+new Chart(document.getElementById('capacityChart'),{type:'bar',data:{labels:capacity.labels,datasets:[{label:'Utilization %',data:capacity.values}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('costMix'),{type:'doughnut',data:{labels:cost.labels,datasets:[{data:cost.values}]},options:{plugins:{legend:{position:'bottom'}}}});
+</script>{% endblock %}

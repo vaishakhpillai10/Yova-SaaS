@@ -1,0 +1,51 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Sign in · Engineering CMMS</title>
+  <link href="{% static 'asset_mgmt/css/offline-ui.css' %}" rel="stylesheet">
+  <link href="{% static 'asset_mgmt/css/app.css' %}" rel="stylesheet">
+</head>
+<body class="login-bg">
+  <main class="login-wrap">
+
+    <section class="login-hero">
+      <div class="brand big">
+        <img src="{% static 'asset_mgmt/img/logo.png' %}" alt="Vaisra">
+      </div>
+      <h2>Computerized Maintenance Management System</h2>
+      <p>Assets, work orders, materials and approvals in one controlled system.</p>
+    </section>
+
+    <section class="login-card">
+      <h2>Sign in</h2>
+
+      <form method="post" novalidate autocomplete="on">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label class="form-label" for="id_username">Username</label>
+          <input type="text" name="username" value="{{ form.username.value|default_if_none:'' }}" autofocus autocomplete="username" required id="id_username" class="form-control">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="id_password">Password</label>
+          <input type="password" name="password" autocomplete="current-password" required id="id_password" class="form-control">
+        </div>
+
+        <button class="btn btn-primary w-100">Sign in</button>
+      </form>
+    </section>
+
+  </main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}Asset Transfer {{ transfer.transfer_no }}{% endblock %}
+{% block content %}
+<div class="card-soft">
+  <div class="section-head"><div><h3>{{ transfer.asset }}</h3><p class="text-muted mb-0">{{ transfer.get_transfer_type_display }} · {{ transfer.get_status_display }}</p></div></div>
+  <div class="info-grid mt-3">
+    <div class="info-item"><label>From</label><div>{{ transfer.current_plant }}<br>{{ transfer.current_location }}</div></div>
+    <div class="info-item"><label>To</label><div>{{ transfer.destination_plant }}<br>{{ transfer.destination_location }}</div></div>
+    <div class="info-item"><label>Reason</label><div>{{ transfer.reason }}</div></div>
+    <div class="info-item"><label>Requested By</label><div>{{ transfer.requested_by }}</div></div>
+    <div class="info-item"><label>Approved By</label><div>{{ transfer.approved_by|default:'-' }}</div></div>
+    <div class="info-item"><label>Received By</label><div>{{ transfer.received_by|default:'-' }}</div></div>
+  </div>
+  <div class="quick-actions mt-4">
+    <a class="btn btn-outline-secondary" href="{{ transfer.asset.get_absolute_url }}">Back to Asset</a>
+    {% can_access 'asset_transfer_action' as can_transfer_action %}{% if can_transfer_action %}
+      {% for action in 'submit,approve,dispatch,receive,reject'|split:',' %}
+        <form method="post" action="{% url 'asset_transfer_action' transfer.pk action %}">{% csrf_token %}<button class="btn btn-primary btn-sm">{{ action|title }}</button></form>
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

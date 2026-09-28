@@ -1,0 +1,142 @@
+{% extends 'asset_mgmt/base.html' %}{% load role_tags %}
+{% block page_heading %}{{ title }}{% endblock %}
+{% block content %}
+{% can_access 'pm_generate_wo' as can_pm_generate %}
+{% can_access 'llf_convert_mr' as can_llf_convert %}
+{% can_access 'moc_action' as can_moc_action %}
+{% can_access 'moc_pdf' as can_moc_pdf %}
+{% can_access 'goods_receipt_post' as can_receipt_post %}
+{% can_access 'stock_transfer_post' as can_transfer_post %}
+{% can_access 'material_issue_post' as can_issue_post %}
+{% can_access 'service_entry_action' as can_service_entry_action %}
+{% can_access 'purchase_order_action' as can_purchase_order_action %}
+{% can_access 'vendor_invoice_action' as can_vendor_invoice_action %}
+{% can_access 'permit_action' as can_permit_action %}
+{% can_access 'capex_action' as can_capex_action %}
+{% can_access 'capex_pdf' as can_capex_pdf %}
+{% can_access 'disposal_action' as can_disposal_action %}
+{% can_access 'disposal_pdf' as can_disposal_pdf %}
+<div class="toolbar flex-wrap gap-2">
+  <form class="d-flex gap-2 flex-wrap" method="get">
+    <input class="form-control" style="max-width:260px" type="search" name="q" value="{{ request.GET.q }}" placeholder="Search records">
+    {% if plants %}<select class="form-select" name="plant" style="max-width:220px"><option value="">All permitted plants</option>{% for plant in plants %}<option value="{{ plant.pk }}" {% if selected_plant_id == plant.pk|stringformat:'s' %}selected{% endif %}>{{ plant.code }} - {{ plant.name }}</option>{% endfor %}</select>{% endif %}
+    <input class="form-control" style="max-width:180px" name="status" value="{{ request.GET.status }}" placeholder="Status code">
+    <button class="btn btn-outline-secondary">Filter</button><a class="btn btn-light" href="{{ request.path }}">Reset</a>
+  </form>
+  <div class="d-flex gap-2">
+    {% if request.resolver_match.url_name == 'asset_list' %}{% can_access 'asset_import' as can_import %}{% if can_import %}<a href="{% url 'asset_import' %}" class="btn btn-outline-primary">Bulk Import</a>{% endif %}{% endif %}
+    {% if can_create %}<a href="{% url create_url_name %}" class="btn btn-primary">Create / Add</a>{% endif %}
+  </div>
+</div>
+{% if shutdown_chart_json %}
+<div class="card-soft mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div><h2 class="h5 mb-1">Shutdown completion by plan</h2><p class="text-muted mb-0">Progress percentage for the currently filtered plans.</p></div>
+  </div>
+  <div style="height:320px"><canvas id="shutdownProgressChart" aria-label="Shutdown completion bar chart"></canvas></div>
+</div>
+{% endif %}
+<div class="card-soft"><div class="table-responsive"><table class="table table-hover align-middle">
+<thead><tr>{% for field,label in columns %}<th>{{ label }}</th>{% endfor %}<th class="text-end">Actions</th></tr></thead>
+<tbody>
+{% for item in items %}
+<tr>
+  {% for field,label in columns %}<td>{% with value=item|attr:field %}{% if field == 'status' %}<span class="status-pill">{{ value }}</span>{% else %}{{ value }}{% endif %}{% endwith %}</td>{% endfor %}
+  <td class="text-end action-cell">
+    <div class="d-flex flex-wrap justify-content-end gap-1">
+    {% if detail_url_name %}<a href="{% url detail_url_name item.pk %}" class="btn btn-sm btn-outline-primary">View</a>{% endif %}
+    {% if can_update %}
+      {% if item|class_name == 'PurchaseRequest' %}{% if item.status == 'DRAFT' or item.status == 'REJECTED' %}{% if item.requested_by_id == request.user.id or request.user.is_superuser %}<a href="{% url update_url_name item.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}{% endif %}
+      {% elif item|class_name == 'ModificationOrder' %}{% if not item.is_locked %}<a href="{% url update_url_name item.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
+      {% else %}<a href="{% url update_url_name item.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}
+    {% endif %}
+    {% if item|class_name == 'PMPlan' and can_pm_generate %}<form method="post" action="{% url 'pm_generate_wo' item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-success">Generate WO</button></form>{% endif %}
+    {% if item|class_name == 'LLFObservation' and not item.maintenance_request_id and can_llf_convert %}<form method="post" action="{% url 'llf_convert_mr' item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-success">Create MR</button></form>{% endif %}
+
+    {% if item|class_name == 'ModificationOrder' %}
+      {% if can_moc_pdf %}<a class="btn btn-sm btn-outline-dark" href="{% url 'moc_pdf' item.pk %}" target="_blank">PDF</a>{% endif %}
+      {% if can_moc_action and item.status == 'DRAFT' and item.requested_by_id == request.user.id %}<form method="post" action="{% url 'moc_action' item.pk 'submit' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Submit</button></form>{% endif %}
+      {% if can_moc_action and item.status == 'REJECTED' and item.requested_by_id == request.user.id %}<form method="post" action="{% url 'moc_action' item.pk 'submit' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Resubmit</button></form>{% endif %}
+      {% if can_moc_action and item.status == 'SUBMITTED' %}
+        {% if item.assigned_approver_id == request.user.id or request.user.is_superuser %}
+          <form class="action-with-remark" method="post" action="{% url 'moc_action' item.pk 'approve' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="3" required placeholder="Approval remarks"><button class="btn btn-sm btn-success">Approve</button></form>
+          <form class="action-with-remark" method="post" action="{% url 'moc_action' item.pk 'reject' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="5" required placeholder="Rejection reason"><button class="btn btn-sm btn-danger">Reject</button></form>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+
+    {% if item|class_name == 'PermitToWork' and can_permit_action %}
+      {% if item.status == 'REQUESTED' and current_role == 'Safety' or item.status == 'REQUESTED' and current_role == 'HOD' or item.status == 'REQUESTED' and current_role == 'Admin' %}<form method="post" action="{% url 'permit_action' item.pk 'review' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Safety Review</button></form>{% endif %}
+      {% if item.status == 'SAFETY_REVIEW' and current_role == 'Safety' or item.status == 'SAFETY_REVIEW' and current_role == 'HOD' or item.status == 'SAFETY_REVIEW' and current_role == 'Admin' %}<form method="post" action="{% url 'permit_action' item.pk 'approve' %}">{% csrf_token %}<button class="btn btn-sm btn-success">Approve</button></form><form method="post" action="{% url 'permit_action' item.pk 'reject' %}">{% csrf_token %}<button class="btn btn-sm btn-danger">Reject</button></form>{% endif %}
+      {% if item.status == 'APPROVED' and current_role == 'Safety' or item.status == 'APPROVED' and current_role == 'HOD' or item.status == 'APPROVED' and current_role == 'Admin' %}<form method="post" action="{% url 'permit_action' item.pk 'issue' %}">{% csrf_token %}<button class="btn btn-sm btn-primary">Issue</button></form>{% endif %}
+      {% if item.status == 'ISSUED' and current_role == 'Safety' or item.status == 'ISSUED' and current_role == 'Maintenance' or item.status == 'ISSUED' and current_role == 'HOD' or item.status == 'ISSUED' and current_role == 'Admin' %}<form method="post" action="{% url 'permit_action' item.pk 'close' %}">{% csrf_token %}<button class="btn btn-sm btn-dark">Close Permit</button></form>{% endif %}
+    {% endif %}
+
+    {% if item|class_name == 'GoodsReceipt' and item.status == 'DRAFT' and can_receipt_post %}<form method="post" action="{% url 'goods_receipt_post' item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-success">Post</button></form>{% endif %}
+    {% if item|class_name == 'StockTransfer' and item.status == 'DRAFT' and can_transfer_post %}<form method="post" action="{% url 'stock_transfer_post' item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-success">Post</button></form>{% endif %}
+    {% if item|class_name == 'MaterialIssue' and item.status == 'DRAFT' and can_issue_post %}<form method="post" action="{% url 'material_issue_post' item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-success">Post</button></form>{% endif %}
+    {% if item|class_name == 'ServiceEntrySheet' and item.status == 'DRAFT' and can_service_entry_action %}<form method="post" action="{% url 'service_entry_action' item.pk 'accept' %}">{% csrf_token %}<button class="btn btn-sm btn-success">Accept SES</button></form><form method="post" action="{% url 'service_entry_action' item.pk 'reject' %}">{% csrf_token %}<button class="btn btn-sm btn-danger">Reject</button></form>{% endif %}
+
+    {% if item|class_name == 'PurchaseOrder' and can_purchase_order_action %}
+      {% if item.status == 'DRAFT' %}<form method="post" action="{% url 'purchase_order_action' item.pk 'release' %}">{% csrf_token %}<button class="btn btn-sm btn-success">Release PO</button></form>{% endif %}
+      {% if item.status == 'RECEIVED' or item.status == 'INVOICED' %}<form method="post" action="{% url 'purchase_order_action' item.pk 'close' %}">{% csrf_token %}<button class="btn btn-sm btn-dark">Close PO</button></form>{% endif %}
+      {% if item.status == 'DRAFT' or item.status == 'RELEASED' %}<form method="post" action="{% url 'purchase_order_action' item.pk 'cancel' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancel PO</button></form>{% endif %}
+    {% endif %}
+    {% if item|class_name == 'VendorInvoice' and can_vendor_invoice_action %}
+      {% if item.accounts_clearance_status == 'PENDING' %}<form method="post" action="{% url 'vendor_invoice_action' item.pk 'clear' %}">{% csrf_token %}<button class="btn btn-sm btn-success">Clear</button></form><form method="post" action="{% url 'vendor_invoice_action' item.pk 'hold' %}">{% csrf_token %}<button class="btn btn-sm btn-warning">Hold</button></form>{% endif %}
+      {% if item.accounts_clearance_status == 'HOLD' %}<form method="post" action="{% url 'vendor_invoice_action' item.pk 'clear' %}">{% csrf_token %}<button class="btn btn-sm btn-success">Clear</button></form>{% endif %}
+      {% if item.accounts_clearance_status == 'CLEARED' and item.payment_status != 'RELEASED' %}<form method="post" action="{% url 'vendor_invoice_action' item.pk 'release_payment' %}">{% csrf_token %}<button class="btn btn-sm btn-primary">Release Payment</button></form>{% endif %}
+    {% endif %}
+
+    {% if item|class_name == 'CAPEXProposal' %}
+      {% if can_capex_pdf %}<a class="btn btn-sm btn-outline-dark" href="{% url 'capex_pdf' item.pk %}" target="_blank">Note</a>{% endif %}
+      {% if can_capex_action and item.status == 'DRAFT' and item.requested_by_id == request.user.id %}<form method="post" action="{% url 'capex_action' item.pk 'submit' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Submit</button></form>{% endif %}
+      {% if can_capex_action and item.status == 'REJECTED' and item.requested_by_id == request.user.id %}<form method="post" action="{% url 'capex_action' item.pk 'submit' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Resubmit</button></form>{% endif %}
+      {% if can_capex_action and item.status == 'SUBMITTED' %}
+        {% if item.assigned_approver_id == request.user.id or request.user.is_superuser %}
+          <form class="action-with-remark" method="post" action="{% url 'capex_action' item.pk 'approve' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="3" required placeholder="Approval remarks"><button class="btn btn-sm btn-success">Approve</button></form>
+          <form class="action-with-remark" method="post" action="{% url 'capex_action' item.pk 'reject' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="5" required placeholder="Rejection reason"><button class="btn btn-sm btn-danger">Reject</button></form>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+
+    {% if item|class_name == 'AssetDisposalRequest' %}
+      {% if can_disposal_pdf %}<a class="btn btn-sm btn-outline-dark" href="{% url 'disposal_pdf' item.pk %}" target="_blank">Note</a>{% endif %}
+      {% if can_disposal_action and item.status == 'DRAFT' and item.requested_by_id == request.user.id %}<form method="post" action="{% url 'disposal_action' item.pk 'submit' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Submit</button></form>{% endif %}
+      {% if can_disposal_action and item.status == 'REJECTED' and item.requested_by_id == request.user.id %}<form method="post" action="{% url 'disposal_action' item.pk 'submit' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Resubmit</button></form>{% endif %}
+      {% if can_disposal_action and item.status == 'SUBMITTED' %}
+        {% if item.assigned_approver_id == request.user.id or request.user.is_superuser %}
+          <form class="action-with-remark" method="post" action="{% url 'disposal_action' item.pk 'approve' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="3" required placeholder="Approval remarks"><button class="btn btn-sm btn-success">Approve</button></form>
+          <form class="action-with-remark" method="post" action="{% url 'disposal_action' item.pk 'reject' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="5" required placeholder="Rejection reason"><button class="btn btn-sm btn-danger">Reject</button></form>
+        {% endif %}
+      {% endif %}
+      {% if can_disposal_action and item.status == 'APPROVED' %}
+        {% if item.assigned_approver_id == request.user.id or request.user.is_superuser %}<form class="action-with-remark" method="post" action="{% url 'disposal_action' item.pk 'execute' %}">{% csrf_token %}<input class="form-control form-control-sm" name="remarks" minlength="3" required placeholder="Execution remarks"><button class="btn btn-sm btn-dark">Execute</button></form>{% endif %}
+      {% endif %}
+    {% endif %}
+    </div>
+  </td>
+</tr>
+{% empty %}<tr><td colspan="12" class="text-center py-4">No records found.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% if is_paginated %}<nav class="mt-3"><ul class="pagination">{% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}<li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>{% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}</ul></nav>{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if shutdown_chart_json %}
+{{ shutdown_chart_json|json_script:"shutdown-chart-data" }}
+<script>
+(() => {
+  const element = document.getElementById('shutdown-chart-data');
+  const canvas = document.getElementById('shutdownProgressChart');
+  if (!element || !canvas || typeof Chart === 'undefined') return;
+  const data = JSON.parse(element.textContent);
+  new Chart(canvas, {
+    type: 'bar',
+    data: { labels: data.labels, datasets: [{ label: 'Completion %', data: data.values }] },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
+

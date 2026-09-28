@@ -1,0 +1,297 @@
+{% extends 'asset_mgmt/form.html' %}
+
+{% block scripts %}
+<style>
+  .asset-combobox { position: relative; }
+  /* The Django select carries the submitted asset ID, like the hidden input in
+     a Semantic UI search dropdown. Override the global .form-select display. */
+  .asset-combobox > select.form-select { display: none !important; }
+  .asset-combobox-input { padding-right: 2.5rem; }
+  .asset-combobox-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 2.5rem;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+  }
+  .asset-combobox-toggle:disabled { cursor: not-allowed; opacity: .45; }
+  .asset-combobox-menu {
+    position: absolute;
+    z-index: 1050;
+    top: calc(100% + .25rem);
+    right: 0;
+    left: 0;
+    max-height: 18rem;
+    overflow-y: auto;
+    padding: .35rem;
+    border: 1px solid #cbd5e1;
+    border-radius: .5rem;
+    background: #fff;
+    box-shadow: 0 .75rem 1.75rem rgba(15, 23, 42, .14);
+  }
+  .asset-combobox-option {
+    display: block;
+    width: 100%;
+    padding: .55rem .65rem;
+    border: 0;
+    border-radius: .35rem;
+    background: transparent;
+    color: #0f172a;
+    text-align: left;
+  }
+  .asset-combobox-option:hover,
+  .asset-combobox-option.active {
+    background: #e8f1ff;
+    color: #123d78;
+  }
+  .asset-combobox-message {
+    padding: .55rem .65rem;
+    color: #64748b;
+    font-size: .875rem;
+  }
+</style>
+<script>
+(() => {
+  const plantSelect = document.getElementById('id_plant');
+  const assetSelect = document.getElementById('id_asset');
+  const workCentreSelect = document.getElementById('id_work_centre');
+  const optionsUrl = '{% url "maintenance_request_options" %}';
+
+  if (!plantSelect || !assetSelect || !workCentreSelect) return;
+
+  const wrapper = document.createElement('div');
+  const assetInput = document.createElement('input');
+  const toggleButton = document.createElement('button');
+  const resultsMenu = document.createElement('div');
+  const assetLabel = document.querySelector(`label[for="${assetSelect.id}"]`);
+  const maximumVisibleResults = 80;
+  let assets = [];
+  let filteredAssets = [];
+  let activeResultIndex = -1;
+
+  wrapper.className = 'asset-combobox';
+  assetInput.id = 'id_asset_combobox';
+  assetInput.className = 'form-control asset-combobox-input';
+  assetInput.type = 'text';
+  assetInput.autocomplete = 'off';
+  assetInput.placeholder = 'Select a plant first';
+  assetInput.required = true;
+  assetInput.setAttribute('role', 'combobox');
+  assetInput.setAttribute('aria-autocomplete', 'list');
+  assetInput.setAttribute('aria-controls', 'asset-combobox-results');
+  assetInput.setAttribute('aria-expanded', 'false');
+
+  toggleButton.type = 'button';
+  toggleButton.className = 'asset-combobox-toggle';
+  toggleButton.setAttribute('aria-label', 'Open asset list');
+  toggleButton.textContent = '▾';
+
+  resultsMenu.id = 'asset-combobox-results';
+  resultsMenu.className = 'asset-combobox-menu';
+  resultsMenu.setAttribute('role', 'listbox');
+  resultsMenu.hidden = true;
+
+  assetSelect.hidden = true;
+  assetSelect.style.setProperty('display', 'none', 'important');
+  assetSelect.setAttribute('aria-hidden', 'true');
+  assetSelect.insertAdjacentElement('beforebegin', wrapper);
+  wrapper.append(assetInput, toggleButton, resultsMenu, assetSelect);
+  if (assetLabel) assetLabel.setAttribute('for', assetInput.id);
+
+  const replaceWorkCentreOptions = (items, placeholder, selectedValue = '') => {
+    workCentreSelect.replaceChildren(new Option(placeholder, ''));
+    items.forEach((item) => {
+      workCentreSelect.add(new Option(item.label, item.id, false, String(item.id) === selectedValue));
+    });
+    workCentreSelect.disabled = false;
+  };
+
+  const setMenuVisibility = (visible) => {
+    resultsMenu.hidden = !visible;
+    assetInput.setAttribute('aria-expanded', visible ? 'true' : 'false');
+    if (!visible) {
+      activeResultIndex = -1;
+      assetInput.removeAttribute('aria-activedescendant');
+    }
+  };
+
+  const setHiddenAsset = (asset = null) => {
+    assetSelect.replaceChildren(new Option('Select an asset', ''));
+    if (asset) assetSelect.add(new Option(asset.label, asset.id, true, true));
+  };
+
+  const selectAsset = (asset) => {
+    setHiddenAsset(asset);
+    assetInput.value = asset.label;
+    assetInput.classList.remove('is-invalid');
+    setMenuVisibility(false);
+  };
+
+  const updateActiveResult = (nextIndex) => {
+    const optionButtons = resultsMenu.querySelectorAll('[data-asset-id]');
+    if (!optionButtons.length) return;
+    activeResultIndex = Math.max(0, Math.min(nextIndex, optionButtons.length - 1));
+    optionButtons.forEach((button, index) => {
+      const active = index === activeResultIndex;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    const activeButton = optionButtons[activeResultIndex];
+    assetInput.setAttribute('aria-activedescendant', activeButton.id);
+    activeButton.scrollIntoView({block: 'nearest'});
+  };
+
+  const renderAssetResults = () => {
+    const query = assetInput.value.trim().toLocaleLowerCase();
+    const allMatches = query
+      ? assets.filter((asset) => asset.label.toLocaleLowerCase().includes(query))
+      : assets;
+    filteredAssets = allMatches.slice(0, maximumVisibleResults);
+    activeResultIndex = -1;
+
+    const fragment = document.createDocumentFragment();
+    filteredAssets.forEach((asset, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = `asset-result-${index}`;
+      button.className = 'asset-combobox-option';
+      button.dataset.assetId = String(asset.id);
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', 'false');
+      button.textContent = asset.label;
+      fragment.appendChild(button);
+    });
+
+    if (!filteredAssets.length) {
+      const message = document.createElement('div');
+      message.className = 'asset-combobox-message';
+      message.textContent = 'No matching assets found.';
+      fragment.appendChild(message);
+    } else if (allMatches.length > maximumVisibleResults) {
+      const message = document.createElement('div');
+      message.className = 'asset-combobox-message';
+      message.textContent = `Showing ${maximumVisibleResults} results. Type more to narrow the list.`;
+      fragment.appendChild(message);
+    }
+
+    resultsMenu.replaceChildren(fragment);
+    setMenuVisibility(true);
+  };
+
+  const resetAssetControl = (message, disabled) => {
+    assets = [];
+    filteredAssets = [];
+    setHiddenAsset();
+    assetInput.value = '';
+    assetInput.placeholder = message;
+    assetInput.disabled = disabled;
+    toggleButton.disabled = disabled;
+    resultsMenu.replaceChildren();
+    setMenuVisibility(false);
+  };
+
+  const resetDependents = (message = 'Select a plant first') => {
+    resetAssetControl(message, !plantSelect.value);
+    replaceWorkCentreOptions([], message);
+    workCentreSelect.disabled = !plantSelect.value;
+  };
+
+  assetInput.addEventListener('focus', () => {
+    if (!assetInput.disabled && assets.length) renderAssetResults();
+  });
+
+  assetInput.addEventListener('input', () => {
+    setHiddenAsset();
+    renderAssetResults();
+  });
+
+  assetInput.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (resultsMenu.hidden) renderAssetResults();
+      updateActiveResult(activeResultIndex + 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (resultsMenu.hidden) renderAssetResults();
+      updateActiveResult(activeResultIndex < 0 ? filteredAssets.length - 1 : activeResultIndex - 1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (filteredAssets.length) {
+        selectAsset(filteredAssets[activeResultIndex >= 0 ? activeResultIndex : 0]);
+      }
+    } else if (event.key === 'Escape') {
+      setMenuVisibility(false);
+    }
+  });
+
+  toggleButton.addEventListener('click', () => {
+    if (assetInput.disabled) return;
+    if (resultsMenu.hidden) {
+      renderAssetResults();
+      assetInput.focus();
+    } else {
+      setMenuVisibility(false);
+    }
+  });
+
+  resultsMenu.addEventListener('mousedown', (event) => {
+    const option = event.target.closest('[data-asset-id]');
+    if (!option) return;
+    event.preventDefault();
+    const asset = assets.find((item) => String(item.id) === option.dataset.assetId);
+    if (asset) selectAsset(asset);
+  });
+
+  document.addEventListener('mousedown', (event) => {
+    if (!wrapper.contains(event.target)) setMenuVisibility(false);
+  });
+
+  const loadPlantOptions = async () => {
+    const plantId = plantSelect.value;
+    if (!plantId) {
+      resetDependents();
+      return;
+    }
+
+    const selectedAssetId = assetSelect.value;
+    const selectedWorkCentre = workCentreSelect.value;
+    resetAssetControl('Loading assets…', true);
+    replaceWorkCentreOptions([], 'Loading work centres…');
+    workCentreSelect.disabled = true;
+
+    try {
+      const response = await fetch(`${optionsUrl}?plant=${encodeURIComponent(plantId)}`, {
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+      });
+      if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+      const data = await response.json();
+      if (plantSelect.value !== plantId) return;
+
+      assets = data.assets;
+      const selectedAsset = assets.find((asset) => String(asset.id) === selectedAssetId);
+      setHiddenAsset(selectedAsset);
+      assetInput.value = selectedAsset ? selectedAsset.label : '';
+      assetInput.placeholder = 'Type asset ID or name';
+      assetInput.disabled = false;
+      toggleButton.disabled = false;
+      replaceWorkCentreOptions(data.work_centres, 'Select a work centre', selectedWorkCentre);
+    } catch (error) {
+      if (plantSelect.value === plantId) resetDependents('Unable to load choices');
+    }
+  };
+
+  plantSelect.addEventListener('change', () => {
+    assetSelect.value = '';
+    workCentreSelect.value = '';
+    loadPlantOptions();
+  });
+
+  if (plantSelect.value) loadPlantOptions();
+  else resetDependents();
+})();
+</script>
+{% endblock %}

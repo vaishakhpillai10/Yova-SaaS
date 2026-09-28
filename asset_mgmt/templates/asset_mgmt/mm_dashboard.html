@@ -1,0 +1,38 @@
+{% extends 'asset_mgmt/base.html' %}
+{% block page_heading %}Materials Management Dashboard{% endblock %}
+{% block content %}
+
+<section class="dashboard-kpi-grid mb-4" aria-label="Procurement summary">
+  <a class="dashboard-kpi primary" href="{% url 'purchase_request_list' %}?status=SUBMITTED"><span class="kpi-label">Submitted PR</span><strong>{{ submitted_prs }}</strong><small>Awaiting HOD approval</small></a>
+  <a class="dashboard-kpi success" href="{% url 'purchase_request_list' %}?status=APPROVED"><span class="kpi-label">Approved PR</span><strong>{{ approved_prs }}</strong><small>Cleared for purchasing</small></a>
+  <a class="dashboard-kpi" href="{% url 'purchase_request_list' %}?status=PROCESSING"><span class="kpi-label">Processing PR</span><strong>{{ processing_prs }}</strong><small>Sourcing in progress</small></a>
+  <a class="dashboard-kpi warning" href="{% url 'purchase_order_list' %}"><span class="kpi-label">Open PO</span><strong>{{ open_pos }}</strong><small>Placed, not yet closed</small></a>
+  <a class="dashboard-kpi danger" href="{% url 'goods_receipt_list' %}"><span class="kpi-label">Pending receipts</span><strong>{{ pending_receipts }}</strong><small>Material awaiting GRN</small></a>
+</section>
+
+<section class="dashboard-chart-grid">
+  <div class="chart-card">
+    <div class="chart-card-head">
+      <div>
+        <span class="chart-eyebrow">Purchase requests</span>
+        <h3>Request status mix</h3>
+        <p>Distribution of purchase requests across the approval workflow.</p>
+      </div>
+    </div>
+    <div class="chart-shell chart-shell-donut"><canvas id="pr"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-head">
+      <div>
+        <span class="chart-eyebrow">Purchase orders</span>
+        <h3>Order status</h3>
+        <p>Open and completed purchase orders by current stage.</p>
+      </div>
+    </div>
+    <div class="chart-shell"><canvas id="po"></canvas></div>
+  </div>
+</section>
+
+{% endblock %}
+{% block scripts %}<script>const pr={{ pr_status_json|safe }},po={{ po_status_json|safe }};new Chart(document.getElementById('pr'),{type:'doughnut',data:{labels:pr.labels,datasets:[{data:pr.values}]}});new Chart(document.getElementById('po'),{type:'bar',data:{labels:po.labels,datasets:[{label:'PO',data:po.values}]}});</script>{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'asset_mgmt/base.html' %}
+{% load role_tags %}
+{% block page_heading %}Asset Master / Asset Register{% endblock %}
+{% block content %}
+<div class="dashboard-grid mb-4">
+  <a class="kpi lime" href="{% url 'asset_list' %}"><span>Total Assets</span><strong>{{ total_assets }}</strong><small>Complete register</small></a>
+  <a class="kpi" href="{% url 'asset_list' %}?lifecycle=ACTIVE"><span>Active Assets</span><strong>{{ active_assets }}</strong><small>In operational master</small></a>
+  <a class="kpi danger" href="{% url 'asset_list' %}?critical=1"><span>Critical / Safety</span><strong>{{ critical_assets }}</strong><small>High-risk equipment</small></a>
+  <a class="kpi warning" href="{% url 'asset_list' %}?warranty=active"><span>Warranty Expiring</span><strong>{{ warranty_expiring }}</strong><small>Within 60 days</small></a>
+</div>
+
+<div class="toolbar">
+  <form method="get" class="search-form">
+    <input type="text" name="q" value="{{ request.GET.q }}" class="form-control" placeholder="Search asset ID, tag, name, manufacturer, serial">
+    <button class="btn btn-outline-primary">Search</button>
+  </form>
+  <div class="quick-actions">
+    {% can_access 'asset_import' as can_import_asset %}{% if can_import_asset %}<a href="{% url 'asset_import' %}" class="btn btn-outline-secondary">Bulk Import</a>{% endif %}
+    {% can_access 'asset_transfer_create' as can_transfer_asset %}{% if can_transfer_asset %}<a href="{% url 'asset_transfer_create' %}" class="btn btn-outline-secondary">Transfer Request</a>{% endif %}
+    {% can_access 'asset_create' as can_create_asset %}{% if can_create_asset %}<a href="{% url 'asset_create' %}" class="btn btn-primary">Add Asset</a>{% endif %}
+  </div>
+</div>
+
+<form class="card-soft mb-4" method="get">
+  <div class="filter-grid">
+    <div><label class="form-label">Plant</label><select class="form-select" name="plant"><option value="">All plants</option>{% for plant in plants %}<option value="{{ plant.pk }}" {% if selected_plant_id == plant.pk|stringformat:'s' %}selected{% endif %}>{{ plant.code }} - {{ plant.name }}</option>{% endfor %}</select></div>
+    <div><label class="form-label">Category</label><select class="form-select" name="category"><option value="">All categories</option>{% for c in categories %}<option value="{{ c.pk }}" {% if request.GET.category == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div><label class="form-label">Lifecycle</label><select class="form-select" name="lifecycle"><option value="">Any</option>{% for value,label in lifecycle_choices %}<option value="{{ value }}" {% if request.GET.lifecycle == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label class="form-label">Operational</label><select class="form-select" name="operational"><option value="">Any</option>{% for value,label in operational_choices %}<option value="{{ value }}" {% if request.GET.operational == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label class="form-label">Condition</label><select class="form-select" name="condition"><option value="">Any</option>{% for value,label in condition_choices %}<option value="{{ value }}" {% if request.GET.condition == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="d-flex align-items-end"><button class="btn btn-primary w-100">Apply Filters</button></div>
+  </div>
+</form>
+
+<div class="card-soft"><div class="table-responsive"><table class="table table-hover align-middle">
+  <thead><tr><th>Asset</th><th>Location</th><th>Ownership</th><th>Technical</th><th>Status</th><th>Risk</th><th>Warranty</th><th></th></tr></thead>
+  <tbody>{% for asset in assets %}<tr>
+    <td><a href="{{ asset.get_absolute_url }}"><strong>{{ asset.asset_id }}</strong></a><br><small>{{ asset.name }}</small><br><small class="text-muted">Tag: {{ asset.tag_number|default:'-' }}</small></td>
+    <td>{{ asset.plant.code }}{% if asset.area %} / {{ asset.area.code }}{% endif %}<br><small>{{ asset.functional_location.code|default:'-' }}</small></td>
+    <td>{{ asset.responsible_department|default:asset.department|default:'-' }}<br><small>{{ asset.responsible_engineer|default:asset.custodian|default:'-' }}</small></td>
+    <td>{{ asset.category|default:'-' }}{% if asset.subcategory %} / {{ asset.subcategory.name }}{% endif %}<br><small>{{ asset.manufacturer|default:'-' }} {{ asset.model_number|default:'' }}</small></td>
+    <td><span class="status-pill">{{ asset.get_status_display }}</span><br><small>{{ asset.get_lifecycle_status_display }}</small></td>
+    <td><span class="badge-soft {% if asset.criticality == 'CRITICAL' or asset.criticality == 'HIGH' %}danger{% elif asset.criticality == 'MEDIUM' %}warning{% else %}success{% endif %}">{{ asset.get_criticality_display }}</span><br><small>Score: {{ asset.criticality_score }}</small></td>
+    <td>{{ asset.warranty_status }}<br><small>{{ asset.warranty_end_date|default:'-' }}</small></td>
+    <td class="text-end action-cell">{% can_access 'asset_update' as can_edit_asset %}{% if can_edit_asset %}<a href="{% url 'asset_update' asset.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="8" class="empty-cell"><div class="empty">No assets found.</div></td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% if is_paginated %}<nav class="mt-3"><ul class="pagination"><li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}"><a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% endif %}">Previous</a></li><li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li><li class="page-item {% if not page_obj.has_next %}disabled{% endif %}"><a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% endif %}">Next</a></li></ul></nav>{% endif %}
+{% endblock %}

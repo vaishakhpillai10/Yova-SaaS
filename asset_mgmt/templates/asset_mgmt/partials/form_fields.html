@@ -1,0 +1,13 @@
+{% load role_tags %}
+{% for name in fields|cut:' '|split:',' %}
+  {% with field=form|dict_get:name %}
+    {% if field %}
+      <div class="col-md-{% if field.field.widget.input_type == 'checkbox' %}4{% elif field.field.widget.attrs.rows %}12{% else %}6{% endif %}">
+        {% if field.field.widget.input_type == 'checkbox' %}<div class="form-check mt-4">{{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label></div>
+        {% else %}<label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>{{ field }}{% endif %}
+        {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+{% endfor %}

@@ -1,0 +1,50 @@
+{% extends 'asset_mgmt/base.html' %}
+{% block page_heading %}Engineering Store Dashboard{% endblock %}
+{% block content %}
+
+<section class="dashboard-kpi-grid mb-4" aria-label="Inventory summary">
+  <a class="dashboard-kpi primary" href="{% url 'spare_list' %}"><span class="kpi-label">Total items</span><strong>{{ total_items }}</strong><small>Stock-keeping units on record</small></a>
+  <a class="dashboard-kpi warning" href="{% url 'spare_list' %}?stock=low"><span class="kpi-label">Low stock</span><strong>{{ low_stock_count }}</strong><small>Below minimum level</small></a>
+  <a class="dashboard-kpi danger" href="{% url 'spare_list' %}?q=0"><span class="kpi-label">Zero stock</span><strong>{{ zero_stock_count }}</strong><small>Fully depleted</small></a>
+  <div class="dashboard-kpi success"><span class="kpi-label">Stock value</span><strong>{{ stock_value|floatformat:2 }}</strong><small>Valuation of items on hand</small></div>
+</section>
+
+<section class="dashboard-list-grid">
+  <div class="surface">
+    <div class="section-head compact">
+      <div><h3>Low-stock items</h3><p>Items at or below their minimum level.</p></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Item</th><th>Stock</th><th>Minimum</th></tr></thead>
+        <tbody>
+          {% for i in low_stock_items %}
+            <tr><td><strong>{{ i.item_no }}</strong><span class="table-subtext">{{ i.name }}</span></td><td>{{ i.current_stock }}</td><td>{{ i.minimum_stock }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="empty-cell"><strong>Stock levels are healthy</strong><small>No item is below its minimum level.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="surface">
+    <div class="section-head compact">
+      <div><h3>Location balances</h3><p>Quantity on hand by storage location.</p></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Item</th><th>Location</th><th>Qty</th></tr></thead>
+        <tbody>
+          {% for b in balances %}
+            <tr><td><strong>{{ b.item.item_no }}</strong></td><td>{{ b.location }}</td><td>{{ b.quantity }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="empty-cell"><strong>No location balances yet</strong><small>Balances appear once stock is received into a location.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

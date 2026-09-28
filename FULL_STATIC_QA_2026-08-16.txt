@@ -1,0 +1,24 @@
+CMMS FULL STATIC GATE: 22/22 PASS
+PASS: All Python files parse
+PASS: No duplicate named URLs
+PASS: All template URL names resolve
+PASS: All POST forms contain CSRF token
+PASS: All template extends targets exist
+PASS: All static template references exist
+PASS: Django template control tags are balanced
+PASS: Core frontend has no external CDN dependency
+PASS: Versioned Django migration is packaged
+PASS: Reliability select_related/defer fix remains present
+PASS: Dashboard responsive md/xl grid utilities exist
+PASS: Responsive dashboard design system exists
+PASS: Offline chart engine handles responsive resize
+PASS: Inline chart JSON is HTML-significant-character escaped
+PASS: Work-order dashboard work_type filter is implemented
+PASS: Purchase and Store roles route to dedicated dashboards
+PASS: Critical dashboard scope includes CRITICAL
+PASS: Asset active metric uses is_active
+PASS: Common request chart uses open backlog
+PASS: Downtime chart is reporting-period scoped
+PASS: PM compliance uses durable PMCall period data
+PASS: Manager capacity includes utilization context
+RESULT: PASS (0 failures)
